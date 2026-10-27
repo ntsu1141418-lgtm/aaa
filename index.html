@@ -1,0 +1,2557 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人理財規畫精靈 | 華南銀行理專 / CFP / AFP / RFA 專業顧問系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- html2pdf.js for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #aiReportPrintArea, #aiReportPrintArea * {
+                visibility: visible;
+            }
+            #aiReportPrintArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                box-shadow: none !important;
+                border: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- ==================== 1. 啟動專屬登入畫面 (未登入前顯示，登入後切換至主畫面) ==================== -->
+    <div id="loginGateScreen" class="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-6 border border-slate-100 my-auto">
+            <!-- Brand Header -->
+            <div class="text-center space-y-2">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl mx-auto shadow-lg shadow-indigo-500/30">
+                    🔮
+                </div>
+                <h1 class="font-extrabold text-slate-900 text-xl sm:text-2xl tracking-tight">個人理財規畫精靈</h1>
+                <p class="text-xs text-slate-500 font-medium">華南銀行理專 | CFP / AFP / RFA 莊永豐 (YungFeng) 專業顧問系統</p>
+                <div class="inline-block bg-indigo-50 text-indigo-700 text-[11px] font-bold px-3 py-1 rounded-full border border-indigo-200">
+                    請先登入以自動載入或建立您的專屬理財規劃
+                </div>
+            </div>
+
+            <!-- Mode Title & Close Button -->
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <h2 id="authModalTitle" class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="ph-bold ph-lock-key text-indigo-600"></i>
+                    <span>會員登入</span>
+                </h2>
+                <button type="button" id="btnCloseLoginGate" onclick="closeLoginGateIfLogged()" class="hidden text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="ph-bold ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Error / Info Banner -->
+            <div id="authErrorBanner" class="hidden p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2">
+                <i class="ph-bold ph-warning-circle text-base shrink-0 mt-0.5"></i>
+                <span id="authErrorText"></span>
+            </div>
+
+            <!-- Login / Register / Forgot Form -->
+            <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4" novalidate>
+                <div class="space-y-1.5">
+                    <label for="authEmail" class="block text-xs font-bold text-slate-700">帳號 / Email 信箱</label>
+                    <div class="relative">
+                        <i class="ph-bold ph-envelope-simple absolute left-3.5 top-3 text-slate-400 text-base"></i>
+                        <input type="email" id="authEmail" required placeholder="請輸入您的 Email 帳號" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                    </div>
+                </div>
+
+                <div id="passwordFieldGroup" class="space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <label for="authPassword" class="block text-xs font-bold text-slate-700">密碼</label>
+                        <button type="button" id="authForgotPasswordLink" onclick="switchAuthMode('forgot')" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline">忘記密碼？</button>
+                    </div>
+                    <div class="relative">
+                        <i class="ph-bold ph-key absolute left-3.5 top-3 text-slate-400 text-base"></i>
+                        <input type="password" id="authPassword" required placeholder="請輸入至少 6 位數密碼" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 p-0.5 rounded transition" title="顯示/隱藏密碼">
+                            <i id="eyeIcon" class="ph-bold ph-eye text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- High-Contrast Call to Action (CTA) Button -->
+                <button type="submit" id="authSubmitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-extrabold text-sm py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="ph-bold ph-sign-in text-base"></i>
+                    <span id="authSubmitBtnText">立即登入並開啟規劃</span>
+                </button>
+            </form>
+
+            <!-- Auxiliary Links -->
+            <div class="pt-3 border-t border-slate-100 flex flex-col gap-2.5 text-center text-xs text-slate-500">
+                <div id="authSwitchPrompt">
+                    還沒有會員帳號？ <button type="button" onclick="switchAuthMode('register')" class="text-indigo-600 font-extrabold hover:underline ml-1">註冊新帳號</button>
+                </div>
+                <div class="pt-1">
+                    <button type="button" onclick="handleAnonymousGuestLogin()" class="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition inline-flex items-center justify-center gap-1.5">
+                        <i class="ph-bold ph-user-focus text-indigo-600 text-sm"></i>
+                        <span>免註冊！以訪客身分快速進入系統體驗</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 2. 主應用程式外殼 (登入後顯示) ==================== -->
+    <div id="appWorkspace" class="hidden min-h-screen flex flex-col justify-between">
+        <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-md">
+            <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+                <!-- Left Brand -->
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg shadow-inner shrink-0">
+                        🔮
+                    </div>
+                    <div class="truncate">
+                        <h1 class="font-bold text-white text-sm sm:text-base tracking-tight flex items-center gap-2">
+                            <span class="truncate">個人理財規畫精靈</span>
+                            <span class="hidden md:inline-block bg-indigo-500/20 text-indigo-300 text-[10px] px-2 py-0.5 rounded-full border border-indigo-500/30 shrink-0">CFP / AFP / RFA 專業顧問版</span>
+                        </h1>
+                        <p class="text-[11px] text-slate-400 truncate">華南銀行理專 | 莊永豐 (YungFeng)</p>
+                    </div>
+                </div>
+
+                <!-- Right Actions: Demo Presets, Unified Cloud Storage/Load Icon, API Key, Auth -->
+                <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <!-- Demo Presets -->
+                    <select id="personaSelect" onchange="loadPersonaPreset(this.value)" class="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 rounded-lg px-2 sm:px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer max-w-[120px] sm:max-w-[170px]">
+                        <option value="">✨ 範例情境...</option>
+                        <option value="alex">Persona A：小資族 Alex</option>
+                        <option value="brenda">Persona B：準退休 Brenda</option>
+                        <option value="deficit">邊界測試：赤字與負淨值</option>
+                    </select>
+
+                    <!-- 整合單一小巧「雲端儲存與讀取紀錄」圖示按鈕 -->
+                    <button type="button" onclick="openSaveCloudDialog()" id="btnQuickCloudAccess" class="relative w-9 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition shadow-sm cursor-pointer" title="儲存或讀取規劃紀錄">
+                        <i class="ph-bold ph-floppy-disk text-lg"></i>
+                        <span id="cloudCountBadge" class="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full border border-slate-900">0</span>
+                    </button>
+
+                    <!-- API Key 設定圖示按鈕 -->
+                    <button type="button" onclick="openApiKeyModal()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center justify-center transition cursor-pointer" title="設定 Gemini API Key">
+                        <i class="ph-bold ph-key text-amber-400 text-base"></i>
+                    </button>
+
+                    <!-- 會員狀態按鈕 -->
+                    <button type="button" onclick="openLoginGateModal()" id="navAuthBtn" class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-2.5 py-2 rounded-lg transition shadow-sm cursor-pointer" title="切換帳號或管理登入狀態">
+                        <i class="ph-bold ph-user-circle text-base"></i>
+                        <span id="navAuthText" class="hidden sm:inline max-w-[90px] truncate">會員</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+            
+            <!-- 目前載入檔案狀態提示列 -->
+            <div class="bg-indigo-950 text-indigo-100 px-4 py-2.5 rounded-xl flex items-center justify-between gap-2 text-xs shadow-sm border border-indigo-800/80">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="px-2 py-0.5 rounded bg-indigo-600 text-white font-bold text-[10px] shrink-0">目前工作檔</span>
+                    <span id="activeProfileBannerTitle" class="font-bold text-white truncate">尚未儲存之新規劃（調整後將自動記憶，亦可點上方 💾 圖示管理）</span>
+                </div>
+                <button type="button" onclick="openSaveCloudDialog()" class="text-emerald-300 hover:text-emerald-200 font-bold inline-flex items-center gap-1 underline cursor-pointer shrink-0 whitespace-nowrap">
+                    <i class="ph-bold ph-floppy-disk"></i> 儲存 / 讀取紀錄
+                </button>
+            </div>
+
+            <!-- Wizard Progress Bar -->
+            <div class="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/80">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                    <div id="stepIndicator1" onclick="goToStep(1)" class="cursor-pointer p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 flex items-center gap-3 transition">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">1</div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wider text-indigo-600 font-bold">Step 1</div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-800">財務盤點</div>
+                        </div>
+                    </div>
+                    <div id="stepIndicator2" onclick="goToStep(2)" class="cursor-pointer p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 flex items-center gap-3 transition opacity-60">
+                        <div class="w-8 h-8 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm shrink-0">2</div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Step 2</div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-800">報表檢視</div>
+                        </div>
+                    </div>
+                    <div id="stepIndicator3" onclick="goToStep(3)" class="cursor-pointer p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 flex items-center gap-3 transition opacity-60">
+                        <div class="w-8 h-8 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm shrink-0">3</div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Step 3</div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-800">目標與調校</div>
+                        </div>
+                    </div>
+                    <div id="stepIndicator4" onclick="goToStep(4)" class="cursor-pointer p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 flex items-center gap-3 transition opacity-60">
+                        <div class="w-8 h-8 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm shrink-0">4</div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Step 4</div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-800">AI 規劃書</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== STEP 1: 財務盤點 ==================== -->
+            <section id="wizardStep1" class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <h2 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <i class="ph-bold ph-wallet text-indigo-600"></i>
+                                <span>步驟一：個人資產負債與收支盤點</span>
+                            </h2>
+                            <p class="text-xs sm:text-sm text-slate-500 mt-1">請填寫您目前的資產、負債與每月經常性收支狀況（支援點擊任意位數逐字修改，系統會自動記憶您的最新設定）。</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                        <!-- Assets & Liabilities Box -->
+                        <div class="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-200 pb-2">
+                                <i class="ph-fill ph-bank text-indigo-600"></i> 1. 資產與負債盤點 (TWD)
+                            </h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">流動資產（現金、活存、定存）</label>
+                                    <input type="text" inputmode="numeric" id="assetLiquid" value="300,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">投資資產（股票、基金、ETF、債券）</label>
+                                    <input type="text" inputmode="numeric" id="assetInvestment" value="1,200,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">自用資產（自用住宅房產現值、汽車）</label>
+                                    <input type="text" inputmode="numeric" id="assetPersonal" value="8,000,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div class="pt-2 border-t border-slate-200">
+                                    <label class="block text-xs font-semibold text-rose-700 mb-1">短期負債（信用卡循環、消費信貸）</label>
+                                    <input type="text" inputmode="numeric" id="liabShortTerm" value="50,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-rose-200 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-rose-700 mb-1">長期負債（房屋貸款餘額）</label>
+                                    <input type="text" inputmode="numeric" id="liabLongTerm" value="5,000,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-rose-200 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cash Flow Box -->
+                        <div class="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-200 pb-2">
+                                <i class="ph-fill ph-receipt text-emerald-600"></i> 2. 每月經常性收支 (TWD / 月)
+                            </h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">月經常性薪資收入</label>
+                                    <input type="text" inputmode="numeric" id="incSalary" value="70,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">其他收入（兼職、被動收入、股利月均）</label>
+                                    <input type="text" inputmode="numeric" id="incOther" value="5,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div class="pt-2 border-t border-slate-200">
+                                    <label class="block text-xs font-semibold text-amber-700 mb-1">必要開銷（房貸/房租、伙食、保險、水電）</label>
+                                    <input type="text" inputmode="numeric" id="expEssential" value="35,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-amber-200 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-amber-700 mb-1">想要開銷（娛樂、旅遊、購物、社交）</label>
+                                    <input type="text" inputmode="numeric" id="expDiscretionary" value="15,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-amber-200 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+
+                                <!-- Live Mini Preview inside Step 1 (標題與金額分上下兩行顯示，絕不遮擋) -->
+                                <div class="mt-4 pt-3 border-t border-slate-200 space-y-2.5">
+                                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col gap-1">
+                                        <span class="text-xs text-slate-500 font-semibold">預估個人淨值 (Total Net Worth)</span>
+                                        <span id="step1QuickNetWorth" class="text-base sm:text-lg font-extrabold text-indigo-700 break-all">NT$ 4,450,000</span>
+                                    </div>
+                                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col gap-1">
+                                        <span class="text-xs text-slate-500 font-semibold">預估每月結餘 (Monthly Surplus)</span>
+                                        <span id="step1QuickSurplus" class="text-base sm:text-lg font-extrabold text-emerald-600 break-all">NT$ 25,000</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 1 Next Button -->
+                    <div class="flex justify-end items-center pt-4 border-t border-slate-100">
+                        <button type="button" onclick="goToStep(2)" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition cursor-pointer">
+                            <span>下一步：檢視財務報表與健康指標</span>
+                            <i class="ph-bold ph-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== STEP 2: 報表檢視與體檢 ==================== -->
+            <section id="wizardStep2" class="space-y-6 hidden">
+                <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <i class="ph-bold ph-chart-pie-slice text-indigo-600"></i>
+                            <span>步驟二：個人財務報表與健康體檢</span>
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-1">系統依據您填寫的數據自動彙整出爐的「個人資產負債表」、「損益表」與三大財務健康關鍵指標。</p>
+                    </div>
+
+                    <!-- 赤字或負淨值警示 Banner -->
+                    <div id="deficitWarningBanner" class="hidden p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm font-semibold flex items-start gap-3">
+                        <i class="ph-fill ph-warning-octagon text-rose-600 text-xl shrink-0 mt-0.5"></i>
+                        <div id="deficitWarningText"></div>
+                    </div>
+
+                    <!-- 3 Key Metric Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-1">
+                            <div class="text-xs font-semibold text-indigo-700 flex items-center gap-1">
+                                <i class="ph-bold ph-piggy-bank"></i> 每月儲蓄率
+                            </div>
+                            <div id="metricSavingsRate" class="text-2xl font-black text-indigo-900">--</div>
+                            <div class="text-[11px] text-indigo-600">建議標準：保持在 30% 以上</div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-amber-50/60 border border-amber-100 space-y-1">
+                            <div class="text-xs font-semibold text-amber-700 flex items-center gap-1">
+                                <i class="ph-bold ph-shield-warning"></i> 緊急預備金月數
+                            </div>
+                            <div id="metricEmergencyMonths" class="text-2xl font-black text-amber-900">--</div>
+                            <div class="text-[11px] text-amber-600">建議標準：至少維持 6 個月總支出</div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-100 border border-slate-200 space-y-1">
+                            <div class="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                                <i class="ph-bold ph-scales"></i> 總負債比率
+                            </div>
+                            <div id="metricDebtRatio" class="text-2xl font-black text-slate-900">--</div>
+                            <div class="text-[11px] text-slate-600">建議標準：低於 50% 為佳</div>
+                        </div>
+                    </div>
+
+                    <!-- Balance Sheet & Income Statement Preview Tables -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                        <!-- Balance Sheet Summary -->
+                        <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center justify-between border-b border-slate-200 pb-2">
+                                <span>個人資產負債表摘要</span>
+                                <span class="text-xs font-normal text-slate-500">單位：新台幣 (TWD)</span>
+                            </h3>
+                            <div class="space-y-2 text-xs sm:text-sm">
+                                <div class="flex justify-between py-1 border-b border-slate-200/60">
+                                    <span class="text-slate-600">流動資產總額</span>
+                                    <span id="sumLiquid" class="font-bold text-slate-800">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-200/60">
+                                    <span class="text-slate-600">投資資產總額</span>
+                                    <span id="sumInvestment" class="font-bold text-slate-800">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-200/60">
+                                    <span class="text-slate-600">自用資產總額</span>
+                                    <span id="sumPersonal" class="font-bold text-slate-800">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 bg-indigo-50/50 px-2 rounded font-bold text-indigo-900">
+                                    <span>總資產 (Total Assets)</span>
+                                    <span id="sumTotalAssets">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-200/60 pt-2">
+                                    <span class="text-slate-600">短期負債總額</span>
+                                    <span id="sumShortLiab" class="font-bold text-rose-600">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-200/60">
+                                    <span class="text-slate-600">長期負債總額</span>
+                                    <span id="sumLongLiab" class="font-bold text-rose-600">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 bg-rose-50/50 px-2 rounded font-bold text-rose-900">
+                                    <span>總負債 (Total Liabilities)</span>
+                                    <span id="sumTotalLiab">--</span>
+                                </div>
+                                <div class="flex justify-between py-2 bg-emerald-50 px-3 rounded-xl font-black text-emerald-900 text-base mt-2 border border-emerald-200">
+                                    <span>個人淨值 (Net Worth)</span>
+                                    <span id="sumNetWorth">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Income Statement Summary -->
+                        <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center justify-between border-b border-slate-200 pb-2">
+                                <span>個人損益與現金流摘要</span>
+                                <span class="text-xs font-normal text-slate-500">單位：新台幣 (TWD/月)</span>
+                            </h3>
+                            <div class="space-y-2 text-xs sm:text-sm">
+                                <div class="flex justify-between py-1 border-b border-slate-200/60">
+                                    <span class="text-slate-600">月經常性薪資</span>
+                                    <span id="sumSalary" class="font-bold text-slate-800">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-200/60">
+                                    <span class="text-slate-600">其他被動收入</span>
+                                    <span id="sumOtherInc" class="font-bold text-slate-800">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 bg-indigo-50/50 px-2 rounded font-bold text-indigo-900">
+                                    <span>月總收入 (Total Income)</span>
+                                    <span id="sumTotalIncome">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-200/60 pt-2">
+                                    <span class="text-slate-600">必要生活開銷</span>
+                                    <span id="sumEssentialExp" class="font-bold text-amber-700">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-200/60">
+                                    <span class="text-slate-600">想要生活開銷</span>
+                                    <span id="sumDiscretionaryExp" class="font-bold text-amber-700">--</span>
+                                </div>
+                                <div class="flex justify-between py-1 bg-amber-50/50 px-2 rounded font-bold text-amber-900">
+                                    <span>月總支出 (Total Expenses)</span>
+                                    <span id="sumTotalExp">--</span>
+                                </div>
+                                <div class="flex justify-between py-2 bg-indigo-600 text-white px-3 rounded-xl font-black text-base mt-2 shadow-sm">
+                                    <span>每月經常結餘 (Monthly Surplus)</span>
+                                    <span id="sumMonthlySurplus">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 Navigation Buttons -->
+                    <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <button type="button" onclick="goToStep(1)" class="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm px-5 py-3 rounded-xl transition cursor-pointer">
+                            <i class="ph-bold ph-arrow-left"></i>
+                            <span>上一步：修改財務數據</span>
+                        </button>
+                        <button type="button" onclick="goToStep(3)" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition cursor-pointer">
+                            <span>下一步：設定理財與退休目標</span>
+                            <i class="ph-bold ph-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== STEP 3: 目標設定與敏感度調校 ==================== -->
+            <section id="wizardStep3" class="space-y-6 hidden">
+                <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <i class="ph-bold ph-target text-indigo-600"></i>
+                            <span>步驟三：理財與退休目標設定 & 4 軸向敏感度即時調校</span>
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-1">兩大目標欄位已同時保留，切換頁籤或拖曳下方 4 軸向滑桿時，系統將**即時重算達成率、缺口與退休金池**。</p>
+                    </div>
+
+                    <!-- Goal Type Selector Tabs -->
+                    <div class="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
+                        <button type="button" id="tabCombo" onclick="switchGoalType('COMBO')" class="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition shadow-2xs bg-indigo-600 text-white cursor-pointer">
+                            🔥 退休＋多目標同時規劃 (綜合分析)
+                        </button>
+                        <button type="button" id="tabRetirement" onclick="switchGoalType('RETIREMENT')" class="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition text-slate-600 hover:text-slate-900 cursor-pointer">
+                            🏖️ 僅規劃退休目標
+                        </button>
+                        <button type="button" id="tabGeneral" onclick="switchGoalType('GENERAL')" class="px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition text-slate-600 hover:text-slate-900 cursor-pointer">
+                            🏠 僅規劃中短期多目標
+                        </button>
+                    </div>
+
+                    <!-- 固定式雙表單容器 (支援單一目標與多目標同時開啟) -->
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-5">
+                        <!-- A. 退休與年齡基礎設定區 -->
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <h3 class="text-xs sm:text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                                    <i class="ph-fill ph-sun-horizon text-indigo-600 text-base"></i>
+                                    <span id="retireSectionHeaderTitle">核心退休目標與勞保勞退參數</span>
+                                </h3>
+                                <span class="text-[11px] text-slate-500">預設通膨率 2.0% / 勞退投報率 3.0%</span>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap">目前年齡 (歲)</label>
+                                    <input type="text" inputmode="numeric" id="currentAge" value="35" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div id="retireTargetAgeBox">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap">預計退休年齡 (歲)</label>
+                                    <input type="text" inputmode="numeric" id="targetAge" value="65" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div id="retireDesiredExpBox">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap">退休後每月預期生活費 (現值)</label>
+                                    <input type="text" inputmode="numeric" id="desiredMonthlyExpense" value="40,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <!-- 向下相容隱藏欄位 -->
+                                <div id="generalGoalNameBox" class="hidden">
+                                    <input type="text" id="generalGoalName" value="購屋頭期款暨裝潢基金">
+                                </div>
+                                <div id="generalTargetAmtBox" class="hidden">
+                                    <input type="text" inputmode="numeric" id="generalTargetAmount" value="6,000,000">
+                                </div>
+                            </div>
+
+                            <!-- Retirement Specific Fields -->
+                            <div id="retirementSpecificFields" class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap">勞保最高 60 個月投保薪資</label>
+                                    <input type="text" inputmode="numeric" id="insuredSalary" value="45,800" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap">勞保預估投保年資 (年)</label>
+                                    <input type="text" inputmode="numeric" id="insuredYears" value="35" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap">勞退新制專戶目前累積現值</label>
+                                    <input type="text" inputmode="numeric" id="laborPensionPV" value="450,000" oninput="formatAndSyncInput(this); handleDataChange()" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+
+                            <div id="generalSpecificFields" class="hidden">
+                                <input type="text" inputmode="numeric" id="targetYears" value="5">
+                            </div>
+                        </div>
+
+                        <!-- B. 多重中短期理財目標動態清單區 (支援購屋、教育金、創業、旅遊等多目標同時試算) -->
+                        <div id="multiGoalsSection" class="space-y-3 pt-4 border-t border-slate-200">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <h3 class="text-xs sm:text-sm font-bold text-emerald-900 flex items-center gap-1.5">
+                                        <i class="ph-fill ph-flag-banner text-emerald-600 text-base"></i>
+                                        <span>多重人生理財目標清單（可新增多筆目標並勾選納入綜合試算）</span>
+                                    </h3>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">系統會將每筆目標依 2% 通膨與投資報酬率折算，自動併入下方「綜合目標總需求與缺口」中同時分析。</p>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" onclick="addQuickPresetGoal('house')" class="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[11px] font-bold transition cursor-pointer">
+                                        + 購屋頭期款
+                                    </button>
+                                    <button type="button" onclick="addQuickPresetGoal('edu')" class="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[11px] font-bold transition cursor-pointer">
+                                        + 子女教育金
+                                    </button>
+                                    <button type="button" onclick="addNewCustomGoalItem()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition cursor-pointer flex items-center gap-1">
+                                        <i class="ph-bold ph-plus"></i> 新增目標
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 動態多目標卡片容器 -->
+                            <div id="multiGoalsListContainer" class="space-y-2.5"></div>
+                        </div>
+                    </div>
+
+                    <!-- Feasibility & 4-Axis Sensitivity Tuning Panel -->
+                    <div class="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white space-y-5 shadow-xl">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3.5">
+                            <div class="min-w-0">
+                                <span class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold block">FV Compound & Life Risk Engine</span>
+                                <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2 whitespace-nowrap">
+                                    <i class="ph-fill ph-chart-line-up text-emerald-400 shrink-0"></i>
+                                    <span class="truncate">目標缺口與長壽風險即時試算</span>
+                                </h3>
+                            </div>
+                            <div id="feasibilityBadge" class="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs sm:text-sm text-center whitespace-nowrap shrink-0">
+                                達成率計算中...
+                            </div>
+                        </div>
+
+                        <!-- Feasibility Metrics Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div class="bg-slate-800/80 px-3.5 py-3 rounded-xl border border-slate-700 space-y-1 min-w-0">
+                                <div class="text-[11px] text-slate-400 whitespace-nowrap truncate">調校後目標 / 退休年齡</div>
+                                <div id="rptAdjustedTime" class="text-base sm:text-lg font-black text-indigo-300 whitespace-nowrap truncate">--</div>
+                                <div id="rptLifeExpectancyNote" class="text-[11px] text-slate-400 whitespace-nowrap truncate">預期壽命評估中</div>
+                            </div>
+                            <div class="bg-slate-800/80 px-3.5 py-3 rounded-xl border border-slate-700 space-y-1 min-w-0">
+                                <div class="text-[11px] text-slate-400 whitespace-nowrap truncate">所需目標總額 (扣勞保勞退)</div>
+                                <div id="rptTargetPool" class="text-base sm:text-lg font-black text-white whitespace-nowrap truncate">--</div>
+                                <div id="rptGovPensionNote" class="text-[11px] text-indigo-300 whitespace-nowrap truncate">含 2% 通膨複利終值</div>
+                            </div>
+                            <div class="bg-slate-800/80 px-3.5 py-3 rounded-xl border border-slate-700 space-y-1 min-w-0">
+                                <div class="text-[11px] text-slate-400 whitespace-nowrap truncate">預計可累積資產總額</div>
+                                <div id="rptProjectedPool" class="text-base sm:text-lg font-black text-emerald-400 whitespace-nowrap truncate">--</div>
+                                <div id="rptMonthlyInvestNote" class="text-[11px] text-slate-400 whitespace-nowrap truncate">隨報酬率與節流連動</div>
+                            </div>
+                            <div class="bg-slate-800/80 px-3.5 py-3 rounded-xl border border-slate-700 space-y-1 min-w-0">
+                                <div class="text-[11px] text-slate-400 whitespace-nowrap truncate">目標缺口 / 超額盈餘</div>
+                                <div id="rptSnapGap" class="text-base sm:text-lg font-black text-rose-400 whitespace-nowrap truncate">--</div>
+                                <div class="text-[11px] text-slate-400 whitespace-nowrap truncate">即時動態試算差額</div>
+                            </div>
+                        </div>
+
+                        <!-- 4-Axis Sensitivity Tuning Sliders -->
+                        <div class="space-y-3.5 pt-2 border-t border-slate-800">
+                            <div class="flex items-center justify-between gap-2">
+                                <h4 class="text-xs sm:text-sm font-bold text-indigo-300 flex items-center gap-1.5 whitespace-nowrap truncate">
+                                    <i class="ph-bold ph-sliders shrink-0"></i>
+                                    <span class="truncate">4 軸向敏感度動態調校（拖曳即時更新上方結果與 AI 建議書）</span>
+                                </h4>
+                                <button type="button" onclick="resetSensitivitySliders()" class="text-[11px] text-slate-300 hover:text-white bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 transition cursor-pointer shrink-0 whitespace-nowrap">
+                                    重置參數
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Slider 1: Portfolio Yield -->
+                                <div class="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                                    <div class="flex justify-between items-center text-xs gap-2">
+                                        <span class="font-semibold text-slate-300 whitespace-nowrap">1. 投資組合預期年化報酬率</span>
+                                        <span id="lblPortfolioYield" class="font-bold text-indigo-400 text-xs sm:text-sm whitespace-nowrap">6.0%</span>
+                                    </div>
+                                    <input type="range" id="sliderPortfolioYield" min="0.02" max="0.12" step="0.005" value="0.06" oninput="updateSensitivitySimulation()" onchange="updateSensitivitySimulation()" class="w-full accent-indigo-500 cursor-pointer">
+                                    <div class="flex justify-between text-[10px] text-slate-500">
+                                        <span>保守 2.0%</span>
+                                        <span>穩健 6.0%</span>
+                                        <span>積極 12.0%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Slider 2: Extend Years -->
+                                <div class="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                                    <div class="flex justify-between items-center text-xs gap-2">
+                                        <span class="font-semibold text-slate-300 whitespace-nowrap">2. 調整累積時長 (延後年數)</span>
+                                        <span id="lblExtendYears" class="font-bold text-indigo-400 text-xs sm:text-sm whitespace-nowrap">0 年</span>
+                                    </div>
+                                    <input type="range" id="sliderExtendYears" min="0" max="10" step="1" value="0" oninput="updateSensitivitySimulation()" onchange="updateSensitivitySimulation()" class="w-full accent-indigo-500 cursor-pointer">
+                                    <div class="flex justify-between text-[10px] text-slate-500">
+                                        <span>不延後 (0年)</span>
+                                        <span>延後 5 年</span>
+                                        <span>延後 10 年</span>
+                                    </div>
+                                </div>
+
+                                <!-- Slider 3: Reduce Monthly Expense -->
+                                <div class="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                                    <div class="flex justify-between items-center text-xs gap-2">
+                                        <span class="font-semibold text-slate-300 whitespace-nowrap">3. 每月減少開銷 (轉投資本金)</span>
+                                        <span id="lblReduceExpense" class="font-bold text-emerald-400 text-xs sm:text-sm whitespace-nowrap">NT$ 0 /月</span>
+                                    </div>
+                                    <input type="range" id="sliderReduceExpense" min="0" max="30000" step="1000" value="0" oninput="updateSensitivitySimulation()" onchange="updateSensitivitySimulation()" class="w-full accent-emerald-500 cursor-pointer">
+                                    <div class="flex justify-between text-[10px] text-slate-500">
+                                        <span>不削減 ($0)</span>
+                                        <span>省 $15,000/月</span>
+                                        <span>省 $30,000/月</span>
+                                    </div>
+                                </div>
+
+                                <!-- Toggle 4: Leverage Loan -->
+                                <div class="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between">
+                                    <div class="flex justify-between items-center text-xs gap-2">
+                                        <span class="font-semibold text-slate-300 whitespace-nowrap">4. 評估低利貸款槓桿 (房貸/信貸)</span>
+                                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                            <input type="checkbox" id="toggleUseLeverage" onchange="updateSensitivitySimulation()" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                        </label>
+                                    </div>
+                                    <div id="leverageStatusNote" class="text-[11px] text-slate-400 whitespace-nowrap truncate">淨值為正可提升約 15% 累積效益；負淨值自動鎖定。</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 Navigation Buttons -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                        <button type="button" onclick="goToStep(2)" class="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm px-5 py-3 rounded-xl transition cursor-pointer">
+                            <i class="ph-bold ph-arrow-left"></i>
+                            <span>上一步：檢視財務報表</span>
+                        </button>
+                        <button type="button" onclick="goToStep(4); generateAIReport();" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition cursor-pointer">
+                            <span>下一步：生成 CFP / AFP / RFA 顧問白話規劃書</span>
+                            <i class="ph-bold ph-sparkle"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== STEP 4: AI 投資規劃書 ==================== -->
+            <section id="wizardStep4" class="space-y-6 hidden">
+                <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+                    <!-- Header Actions inside Step 4 -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div class="min-w-0">
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-200 mb-1">
+                                <i class="ph-fill ph-medal"></i> CFP / AFP / RFA 專業顧問面向一般民眾的白話與深度解析版
+                            </div>
+                            <h2 class="text-base sm:text-xl font-bold text-slate-900 flex items-center gap-2 whitespace-nowrap">
+                                <i class="ph-bold ph-file-text text-indigo-600 shrink-0"></i>
+                                <span class="truncate">步驟四：YungFeng 顧問專屬投資規劃書</span>
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-0.5 truncate">包含「顧問觀點與溫度（白話解析）」、「必須注意的盲點與風險」及「具體可行的調整建議（Action Plan）」。</p>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" onclick="goToStep(3)" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold transition cursor-pointer whitespace-nowrap">
+                                <i class="ph-bold ph-sliders text-sm"></i>
+                                <span>返回調校</span>
+                            </button>
+                            <button type="button" onclick="generateAIReport(true)" id="btnRegenerateAI" class="inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm transition cursor-pointer whitespace-nowrap">
+                                <i class="ph-bold ph-arrows-clockwise text-sm"></i>
+                                <span>重新生成</span>
+                            </button>
+                            <button type="button" onclick="exportToPDF()" id="btnExportPDF" class="inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm transition cursor-pointer whitespace-nowrap">
+                                <i class="ph-bold ph-file-pdf text-sm"></i>
+                                <span>匯出 PDF</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Printable Report Area -->
+                    <div id="aiReportPrintArea" class="p-5 sm:p-8 rounded-2xl bg-white border-2 border-slate-200 space-y-6 text-slate-800 shadow-inner">
+                        <!-- 即時動態同步的關鍵參數摘要表頭 -->
+                        <div class="p-4 sm:p-5 rounded-2xl bg-slate-900 text-white space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700 pb-2.5">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-xl shrink-0">🔮</span>
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-xs sm:text-sm whitespace-nowrap truncate">個人理財與退休規劃執行摘要 (Executive Summary)</div>
+                                        <div class="text-[11px] text-slate-400 whitespace-nowrap truncate">華南銀行理專 | CFP / AFP / RFA 莊永豐 (YungFeng) 顧問專業簽核</div>
+                                    </div>
+                                </div>
+                                <div id="rptHeaderTimestamp" class="text-[11px] text-indigo-300 font-mono whitespace-nowrap shrink-0"></div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                                <div class="bg-slate-800 px-3 py-2.5 rounded-xl min-w-0">
+                                    <div class="text-slate-400 text-[10px] whitespace-nowrap">個人淨值 / 月結餘</div>
+                                    <div id="rptLiveNetWorth" class="font-bold text-white mt-0.5 text-[11px] sm:text-xs whitespace-nowrap truncate">--</div>
+                                </div>
+                                <div class="bg-slate-800 px-3 py-2.5 rounded-xl min-w-0">
+                                    <div class="text-slate-400 text-[10px] whitespace-nowrap">目標設定與年限</div>
+                                    <div id="rptLiveGoalSummary" class="font-bold text-indigo-300 mt-0.5 text-[11px] sm:text-xs whitespace-nowrap truncate">--</div>
+                                </div>
+                                <div class="bg-slate-800 px-3 py-2.5 rounded-xl min-w-0">
+                                    <div class="text-slate-400 text-[10px] whitespace-nowrap">調校報酬率 / 月增資</div>
+                                    <div id="rptLiveStrategySummary" class="font-bold text-emerald-300 mt-0.5 text-[11px] sm:text-xs whitespace-nowrap truncate">--</div>
+                                </div>
+                                <div class="bg-slate-800 px-3 py-2.5 rounded-xl min-w-0">
+                                    <div class="text-slate-400 text-[10px] whitespace-nowrap">最新達成率與缺口</div>
+                                    <div id="rptLiveAchievement" class="font-bold text-amber-300 mt-0.5 text-[11px] sm:text-xs whitespace-nowrap truncate">--</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Report Markdown Content Container -->
+                        <div id="aiReportContentContainer" class="prose max-w-none text-sm leading-relaxed space-y-4">
+                            <!-- Injected by generateAIReport or live fallback -->
+                        </div>
+                    </div>
+
+                    <!-- Footer Navigation -->
+                    <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <button type="button" onclick="goToStep(3)" class="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition cursor-pointer">
+                            <i class="ph-bold ph-arrow-left"></i>
+                            <span>返回步驟三：敏感度調校</span>
+                        </button>
+                        <button type="button" onclick="exportToPDF()" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-md transition cursor-pointer">
+                            <i class="ph-bold ph-file-pdf"></i>
+                            <span>列印 / 匯出 PDF 報告</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-slate-900 border-t border-slate-800 text-slate-400 py-8 text-xs">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="font-bold text-white text-sm">🔮 個人理財規畫精靈 (Personal Financial Planning Wizard)</div>
+                    <div>創作者：<strong class="text-slate-200">YungFeng</strong>（華南銀行理財專員 | CFP / AFP 理財規畫顧問 | RFA 退休理財規畫顧問）</div>
+                    <div>免責聲明：本系統試算結果僅供理財規劃與教育參考，不保證實際投資獲利。</div>
+                </div>
+                <div class="text-slate-500 text-[11px] text-center sm:text-right">
+                    © 2026 FENGStudio (FENG 莊永豐顧問). All rights reserved.
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ==================== 3. 儲存與讀取紀錄管理視窗 ==================== -->
+    <div id="cloudModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto border border-slate-100">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-folder-open text-amber-500 text-xl"></i>
+                    <h3 class="font-bold text-slate-900 text-base">儲存與讀取財務規劃紀錄</h3>
+                </div>
+                <button type="button" onclick="toggleCloudModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
+                    <i class="ph-bold ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Save Current Snapshot Bar -->
+            <div class="p-4 bg-indigo-50/70 rounded-2xl border border-indigo-200 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <label for="cloudProfileTitleInput" class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="ph-fill ph-tag text-indigo-600"></i>
+                        <span>規劃檔案名稱（自動隨即時計算結果更新，亦可自由修改前綴）</span>
+                    </label>
+                    <button type="button" onclick="syncDynamicProfileTitle(true)" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold inline-flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-indigo-200 transition cursor-pointer">
+                        <i class="ph-bold ph-arrows-clockwise"></i> 重新同步動態檔名
+                    </button>
+                </div>
+
+                <input type="text" id="cloudProfileTitleInput" oninput="this.dataset.userEdited='true'" placeholder="例如：退休規劃 (65歲退休 / 報酬6.0% / 達成率100%)" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+                <!-- 儲存方式二選一 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <button type="button" id="btnOverwriteCloud" onclick="saveProfileToCloud(false)" class="w-full inline-flex items-center justify-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold px-4 py-3 rounded-xl shadow-sm transition cursor-pointer">
+                        <i class="ph-bold ph-floppy-disk text-lg"></i>
+                        <div class="text-left">
+                            <div id="btnOverwriteTitle">覆蓋目前紀錄</div>
+                            <div id="btnOverwriteSub" class="text-[10px] font-normal text-emerald-100">直接更新現有檔案並同步最新達成率</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="saveProfileToCloud(true)" class="w-full inline-flex items-center justify-center gap-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold px-4 py-3 rounded-xl shadow-sm transition cursor-pointer">
+                        <i class="ph-bold ph-files text-lg"></i>
+                        <div class="text-left">
+                            <div>另存為新檔案</div>
+                            <div class="text-[10px] font-normal text-indigo-100">保留原紀錄，建立一筆全新的規劃快照</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Saved Profiles List -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-slate-700 text-xs uppercase tracking-wider">已儲存的歷史規劃清單（點擊「讀取並套用」即可載入）</h4>
+                    <span id="storageSourceHint" class="text-[11px] text-emerald-600 font-semibold">☁️ 雲端與本機雙重自動記憶保護中</span>
+                </div>
+                <div id="cloudProfilesListContainer" class="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                    <div class="text-center py-8 text-xs text-slate-400">正在載入您的儲存紀錄...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 4. PDF 匯出與儲存位置確認視窗 ==================== -->
+    <div id="pdfExportModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl space-y-5 border border-slate-100">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i class="ph-fill ph-check-circle text-emerald-600 text-xl"></i>
+                    <span id="pdfModalTitle">PDF 規劃建議書匯出完成</span>
+                </h3>
+                <button type="button" onclick="closePdfModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
+                    <i class="ph-bold ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2.5 text-xs sm:text-sm text-slate-700">
+                <div class="flex items-start gap-2">
+                    <i class="ph-bold ph-file-pdf text-emerald-700 text-lg shrink-0 mt-0.5"></i>
+                    <div>
+                        <span class="font-bold text-slate-900">儲存檔案名稱：</span>
+                        <div id="pdfSavedFilename" class="font-mono text-xs text-indigo-700 font-bold break-all mt-0.5 bg-white px-2.5 py-1.5 rounded border border-emerald-200">--</div>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2 pt-1">
+                    <i class="ph-bold ph-folder-notch-open text-amber-600 text-lg shrink-0 mt-0.5"></i>
+                    <div>
+                        <span class="font-bold text-slate-900">檔案儲存位置說明：</span>
+                        <ul class="list-disc ml-4 mt-1 space-y-1 text-xs text-slate-600">
+                            <li><strong>電腦版瀏覽器 (Chrome / Edge / Safari)</strong>：已自動下載至您電腦的 <strong>「下載 (Downloads)」資料夾</strong>（或可按快捷鍵 <kbd class="px-1.5 py-0.5 bg-slate-200 rounded text-[10px]">Ctrl + J</kbd> / <kbd class="px-1.5 py-0.5 bg-slate-200 rounded text-[10px]">⌘ + Option + L</kbd> 檢視下載清單）。</li>
+                            <li><strong>手機 / 平板裝置</strong>：請於瀏覽器下方或頂部通知列點擊「已下載檔案」，或至手機內建的<strong>「檔案 / 下載 (Files / Downloads)」App</strong> 檢視。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
+                <button type="button" onclick="openStandalonePrintWindow()" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                    <i class="ph-bold ph-printer text-sm"></i>
+                    <span>改用系統列印視窗 (自選儲存資料夾)</span>
+                </button>
+                <button type="button" onclick="closePdfModal()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition cursor-pointer">
+                    我知道了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i class="ph-bold ph-key text-amber-500"></i> 設定 Gemini API Key
+                </h3>
+                <button type="button" onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
+                    <i class="ph-bold ph-x text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500">若您想使用您自己的 Gemini API Key 來產生即時 AI 報告，請在此輸入。若未填寫將自動啟動「CFP / AFP / RFA 專業顧問白話與深度解析引擎」為您產出完整規劃書。</p>
+            <input type="password" id="customApiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeApiKeyModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer">取消</button>
+                <button type="button" onclick="saveApiKey()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm cursor-pointer">儲存設定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div id="toastBanner" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm font-semibold border border-slate-700 pointer-events-none">
+        <span id="toastIcon">✨</span>
+        <span id="toastText">操作成功</span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDYf1CI_WMqr1bgC2sGys1Fus-bYG59aTc",
+            authDomain: "personal-finance-genie.firebaseapp.com",
+            projectId: "personal-finance-genie",
+            storageBucket: "personal-finance-genie.firebasestorage.app",
+            messagingSenderId: "661646129356",
+            appId: "1:661646129356:web:ab89effa041b14216dea69",
+            measurementId: "G-0XVTJ0BGRK"
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'personal-finance-genie-app';
+        let app = null, db = null, auth = null;
+        let currentUser = null;
+        let savedCloudProfiles = [];
+        let activeCloudProfileId = null;
+        let userApiKey = localStorage.getItem("pfg_custom_gemini_key") || "";
+        let hasUserLoggedInThisSession = false;
+        let isApplyingProfile = false;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (err) {
+            console.warn("Firebase initialization fallback:", err);
+        }
+
+        // Core Data Model
+        window.financialProfile = {
+            balanceSheet: { assets: { liquid: 300000, investment: 1200000, personal: 8000000 }, liabilities: { shortTerm: 50000, longTerm: 5000000 }, netWorth: 4450000 },
+            cashFlow: { income: { salary: 70000, other: 5000 }, expenses: { essential: 35000, discretionary: 15000 }, monthlySurplus: 25000, savingsRate: 0.333 },
+            financialGoal: {
+                goalType: "COMBO",
+                currentAge: 35,
+                targetAge: 65,
+                baseTargetAge: 65,
+                yearsRemaining: 30,
+                desiredMonthlyExpense: 40000,
+                generalGoalName: "購屋頭期款暨裝潢基金",
+                generalTargetAmount: 3000000,
+                targetYears: 5,
+                additionalGoals: [
+                    { id: "g_1", name: "購屋頭期款暨裝潢基金", amount: 3000000, years: 5, enabled: true, priority: "高 (核心剛需)" },
+                    { id: "g_2", name: "子女高等教育留學基金", amount: 1500000, years: 12, enabled: true, priority: "中 (階段成長)" }
+                ],
+                retirementSpecifics: { inflationRate: 0.02, laborPensionROI: 0.03, insuredSalary: 45800, insuredYears: 35, laborPensionPresentValue: 450000, laborInsuranceMonthly: 24847 },
+                feasibility: { isFeasible: false, shortfallAmount: 0, projectedNetWorthAtGoal: 0, achievementRate: 0, requiredPoolFV: 0, retireOnlyPoolFV: 0, multiGoalsPoolFV: 0, lifeExpectancy: 91, retirementYears: 26, goalBreakdowns: [] }
+            },
+            adjustmentStrategies: { selectedPortfolioYield: 0.06, extendYears: 0, reducedMonthlyExpense: 0, useLeverageLoan: false },
+            aiGeneratedReport: { status: "PENDING", markdownContent: "", isCustomAI: false }
+        };
+
+        // ==================== 多目標動態管理函式 ====================
+        window.renderMultiGoalsList = function() {
+            const container = document.getElementById("multiGoalsListContainer");
+            if (!container) return;
+            const goals = window.financialProfile.financialGoal.additionalGoals || [];
+
+            if (goals.length === 0) {
+                container.innerHTML = `
+                    <div class="p-4 rounded-xl bg-white border border-dashed border-slate-300 text-center text-xs text-slate-400">
+                        目前尚未加入中短期理財目標，可點擊右上方「+ 新增目標」加入購屋、教育、換車或創業基金。
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = goals.map((g, idx) => `
+                <div class="p-4 rounded-xl bg-white border ${g.enabled ? 'border-emerald-300 shadow-2xs' : 'border-slate-200 opacity-60'} space-y-3 transition">
+                    <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                            <input type="checkbox" ${g.enabled ? 'checked' : ''} onchange="toggleMultiGoalItem('${g.id}', this.checked)" class="w-4 h-4 accent-emerald-600 rounded cursor-pointer shrink-0" title="勾選是否納入綜合缺口試算">
+                            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[11px] border border-emerald-200 shrink-0">目標 ${idx + 1}</span>
+                            <input type="text" value="${g.name}" oninput="updateMultiGoalField('${g.id}', 'name', this.value)" placeholder="請輸入目標名稱" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <button type="button" onclick="removeMultiGoalItem('${g.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0" title="刪除此目標">
+                            <i class="ph-bold ph-trash text-base"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 mb-1">目標現值金額 (TWD)</label>
+                            <input type="text" inputmode="numeric" value="${Math.round(Number(g.amount || 0)).toLocaleString('zh-TW')}" oninput="formatAndSyncInput(this); updateMultiGoalField('${g.id}', 'amount', this.value)" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-bold text-indigo-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 mb-1">預計幾年達成 (年)</label>
+                            <input type="text" inputmode="numeric" value="${Math.round(Number(g.years || 5)).toLocaleString('zh-TW')}" oninput="formatAndSyncInput(this); updateMultiGoalField('${g.id}', 'years', this.value)" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 mb-1">目標優先順序</label>
+                            <select onchange="updateMultiGoalField('${g.id}', 'priority', this.value)" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="高 (核心剛需)" ${g.priority === '高 (核心剛需)' ? 'selected' : ''}>優先度：高 (核心剛需)</option>
+                                <option value="中 (階段成長)" ${g.priority === '中 (階段成長)' ? 'selected' : ''}>優先度：中 (階段成長)</option>
+                                <option value="低 (彈性夢想)" ${g.priority === '低 (彈性夢想)' ? 'selected' : ''}>優先度：低 (彈性夢想)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `).join("");
+        };
+
+        window.toggleMultiGoalItem = function(id, checked) {
+            const goals = window.financialProfile.financialGoal.additionalGoals || [];
+            const item = goals.find(g => g.id === id);
+            if (item) {
+                item.enabled = !!checked;
+                window.renderMultiGoalsList();
+                window.handleDataChange();
+            }
+        };
+
+        window.updateMultiGoalField = function(id, field, rawVal) {
+            const goals = window.financialProfile.financialGoal.additionalGoals || [];
+            const item = goals.find(g => g.id === id);
+            if (!item) return;
+            if (field === "name" || field === "priority") {
+                item[field] = rawVal;
+            } else if (field === "amount") {
+                item.amount = window.parseTWDInput(rawVal);
+            } else if (field === "years") {
+                item.years = Math.max(1, Math.min(60, window.parseTWDInput(rawVal) || 1));
+            }
+            window.handleDataChange();
+        };
+
+        window.addNewCustomGoalItem = function() {
+            const goals = window.financialProfile.financialGoal.additionalGoals || [];
+            goals.push({
+                id: "g_" + Date.now(),
+                name: `自訂理財目標 ${goals.length + 1}`,
+                amount: 1000000,
+                years: 5,
+                enabled: true,
+                priority: "中 (階段成長)"
+            });
+            window.renderMultiGoalsList();
+            window.handleDataChange();
+            window.showToast("🎯 已新增一筆理財目標，並自動納入綜合試算！");
+        };
+
+        window.addQuickPresetGoal = function(presetType) {
+            const goals = window.financialProfile.financialGoal.additionalGoals || [];
+            if (presetType === "house") {
+                goals.push({ id: "g_" + Date.now(), name: "購屋頭期款暨裝潢基金", amount: 3500000, years: 6, enabled: true, priority: "高 (核心剛需)" });
+            } else if (presetType === "edu") {
+                goals.push({ id: "g_" + Date.now(), name: "子女大學與留學教育基金", amount: 1800000, years: 10, enabled: true, priority: "高 (核心剛需)" });
+            }
+            window.renderMultiGoalsList();
+            window.handleDataChange();
+            window.showToast("✨ 已快速加入範例目標並重算綜合缺口！");
+        };
+
+        window.removeMultiGoalItem = function(id) {
+            window.financialProfile.financialGoal.additionalGoals = (window.financialProfile.financialGoal.additionalGoals || []).filter(g => g.id !== id);
+            window.renderMultiGoalsList();
+            window.handleDataChange();
+            window.showToast("🗑️ 已移除該筆理財目標");
+        };
+
+        // ==================== 1. 登入介面與身分驗證流程 ====================
+        let authCurrentMode = "login";
+
+        window.switchAuthMode = function(mode) {
+            authCurrentMode = mode;
+            const titleEl = document.getElementById("authModalTitle");
+            const submitTextEl = document.getElementById("authSubmitBtnText");
+            const pwdGroup = document.getElementById("passwordFieldGroup");
+            const promptEl = document.getElementById("authSwitchPrompt");
+            const forgotLink = document.getElementById("authForgotPasswordLink");
+            const errBanner = document.getElementById("authErrorBanner");
+            if (errBanner) errBanner.classList.add("hidden");
+
+            if (mode === "login") {
+                titleEl.innerHTML = `<i class="ph-bold ph-lock-key text-indigo-600"></i><span>會員登入</span>`;
+                submitTextEl.textContent = "立即登入並開啟規劃";
+                pwdGroup.classList.remove("hidden");
+                forgotLink.classList.remove("hidden");
+                promptEl.innerHTML = `還沒有會員帳號？ <button type="button" onclick="switchAuthMode('register')" class="text-indigo-600 font-extrabold hover:underline ml-1 cursor-pointer">註冊新帳號</button>`;
+            } else if (mode === "register") {
+                titleEl.innerHTML = `<i class="ph-bold ph-user-plus text-indigo-600"></i><span>註冊新帳號</span>`;
+                submitTextEl.textContent = "完成註冊並進入系統";
+                pwdGroup.classList.remove("hidden");
+                forgotLink.classList.add("hidden");
+                promptEl.innerHTML = `已經有會員帳號了？ <button type="button" onclick="switchAuthMode('login')" class="text-indigo-600 font-extrabold hover:underline ml-1 cursor-pointer">返回會員登入</button>`;
+            } else if (mode === "forgot") {
+                titleEl.innerHTML = `<i class="ph-bold ph-envelope-open text-indigo-600"></i><span>重設密碼</span>`;
+                submitTextEl.textContent = "發送密碼重設信件";
+                pwdGroup.classList.add("hidden");
+                promptEl.innerHTML = `想起密碼了？ <button type="button" onclick="switchAuthMode('login')" class="text-indigo-600 font-extrabold hover:underline ml-1 cursor-pointer">返回會員登入</button>`;
+            }
+        };
+
+        window.togglePasswordVisibility = function() {
+            const pwd = document.getElementById("authPassword");
+            const eye = document.getElementById("eyeIcon");
+            if (!pwd || !eye) return;
+            if (pwd.type === "password") {
+                pwd.type = "text";
+                eye.className = "ph-bold ph-eye-slash text-lg text-indigo-600";
+            } else {
+                pwd.type = "password";
+                eye.className = "ph-bold ph-eye text-lg";
+            }
+        };
+
+        function showAuthError(msg, isInfo = false) {
+            const banner = document.getElementById("authErrorBanner");
+            const textEl = document.getElementById("authErrorText");
+            if (!banner || !textEl) return;
+            banner.className = isInfo
+                ? "p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-start gap-2"
+                : "p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2";
+            textEl.textContent = msg;
+            banner.classList.remove("hidden");
+        }
+
+        function getNormalizedAccountKey(userObj) {
+            if (!userObj) return "guest_default_user";
+            if (userObj.email && !userObj.isAnonymous) {
+                return "email_" + userObj.email.trim().toLowerCase();
+            }
+            return userObj.uid || "guest_default_user";
+        }
+
+        async function enterWorkspaceAfterLogin(userObj) {
+            currentUser = userObj;
+            hasUserLoggedInThisSession = true;
+
+            if (userObj.email && !userObj.isAnonymous) {
+                localStorage.setItem("pfg_last_login_email", userObj.email.trim().toLowerCase());
+            }
+
+            const gate = document.getElementById("loginGateScreen");
+            const workspace = document.getElementById("appWorkspace");
+            const closeBtn = document.getElementById("btnCloseLoginGate");
+            if (gate) gate.classList.add("hidden");
+            if (workspace) workspace.classList.remove("hidden");
+            if (closeBtn) closeBtn.classList.remove("hidden");
+
+            const navAuthText = document.getElementById("navAuthText");
+            if (navAuthText) {
+                navAuthText.textContent = userObj.isAnonymous
+                    ? "訪客模式"
+                    : (userObj.email ? userObj.email.split("@")[0] : "已登入會員");
+            }
+
+            await fetchCloudProfiles(true);
+            window.goToStep(1);
+        }
+
+        window.openLoginGateModal = function() {
+            const gate = document.getElementById("loginGateScreen");
+            const closeBtn = document.getElementById("btnCloseLoginGate");
+            if (gate) gate.classList.remove("hidden");
+            if (closeBtn && hasUserLoggedInThisSession) closeBtn.classList.remove("hidden");
+        };
+
+        window.closeLoginGateIfLogged = function() {
+            if (hasUserLoggedInThisSession) {
+                document.getElementById("loginGateScreen")?.classList.add("hidden");
+            }
+        };
+
+        window.handleAuthSubmit = async function(e) {
+            e.preventDefault();
+            const email = (document.getElementById("authEmail")?.value || "").trim();
+            const password = (document.getElementById("authPassword")?.value || "").trim();
+            document.getElementById("authErrorBanner")?.classList.add("hidden");
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!email || !emailRegex.test(email)) {
+                showAuthError("請輸入格式正確的 Email 帳號（例如：name@example.com）");
+                return;
+            }
+
+            if (authCurrentMode === "forgot") {
+                try {
+                    if (auth) await sendPasswordResetEmail(auth, email);
+                    showAuthError("✉️ 若此信箱已註冊，密碼重設信件已發送至您的信箱！", true);
+                } catch (err) {
+                    showAuthError("✉️ 若此信箱已註冊，系統已寄出密碼重設指引，請檢查收件匣。", true);
+                }
+                return;
+            }
+
+            if (!password || password.length < 6) {
+                showAuthError("密碼長度不足，請輸入至少 6 位字元的密碼。");
+                return;
+            }
+
+            const submitBtn = document.getElementById("authSubmitBtn");
+            const submitText = document.getElementById("authSubmitBtnText");
+            const origText = submitText.textContent;
+            submitBtn.disabled = true;
+            submitText.textContent = "驗證中，請稍候...";
+
+            try {
+                if (authCurrentMode === "login") {
+                    try {
+                        const cred = await signInWithEmailAndPassword(auth, email, password);
+                        await enterWorkspaceAfterLogin(cred.user);
+                        window.showToast(`🎉 歡迎回來，${email.split('@')[0]}！已載入您的專屬設定`);
+                    } catch (firebaseErr) {
+                        const localAccKey = "pfg_account_" + email.toLowerCase();
+                        const savedPwd = localStorage.getItem(localAccKey);
+                        if (savedPwd && savedPwd !== password) {
+                            showAuthError("帳號或密碼不正確，請重新確認後再試。");
+                            return;
+                        }
+                        localStorage.setItem(localAccKey, password);
+                        const fallbackUser = { uid: "user_" + btoa(email.toLowerCase()).replace(/=/g, ""), email: email, isAnonymous: false };
+                        await enterWorkspaceAfterLogin(fallbackUser);
+                        window.showToast(`🎉 歡迎回來，${email.split('@')[0]}！已載入您的專屬設定`);
+                    }
+                } else if (authCurrentMode === "register") {
+                    localStorage.setItem("pfg_account_" + email.toLowerCase(), password);
+                    try {
+                        const cred = await createUserWithEmailAndPassword(auth, email, password);
+                        await enterWorkspaceAfterLogin(cred.user);
+                        window.showToast(`🎉 帳號註冊成功！歡迎 ${email.split('@')[0]}`);
+                    } catch (regErr) {
+                        const fallbackUser = { uid: "user_" + btoa(email.toLowerCase()).replace(/=/g, ""), email: email, isAnonymous: false };
+                        await enterWorkspaceAfterLogin(fallbackUser);
+                        window.showToast(`🎉 帳號註冊並登入成功！歡迎 ${email.split('@')[0]}`);
+                    }
+                }
+            } finally {
+                submitBtn.disabled = false;
+                submitText.textContent = origText;
+            }
+        };
+
+        window.handleAnonymousGuestLogin = async function() {
+            try {
+                if (auth) {
+                    const cred = await signInAnonymously(auth);
+                    await enterWorkspaceAfterLogin(cred.user);
+                    window.showToast("✨ 已以訪客身分進入系統，並自動還原您的上次設定！");
+                    return;
+                }
+            } catch (e) {}
+            const guestUser = { uid: "guest_default_user", email: "訪客體驗", isAnonymous: true };
+            await enterWorkspaceAfterLogin(guestUser);
+            window.showToast("✨ 已以訪客身分進入系統，並自動還原您的上次設定！");
+        };
+
+        // ==================== 2. 智慧游標千分位數字編輯引擎 ====================
+        window.formatTWD = function(num) {
+            return "NT$ " + Math.round(Number(num) || 0).toLocaleString('zh-TW');
+        };
+
+        window.parseTWDInput = function(str) {
+            if (str === undefined || str === null || str === "") return 0;
+            const cleaned = String(str).replace(/[^0-9.-]+/g, "");
+            const val = Number(cleaned);
+            return isNaN(val) ? 0 : Math.min(val, 10000000000);
+        };
+
+        document.addEventListener("keydown", function(e) {
+            const el = e.target;
+            if (!el || el.tagName !== "INPUT") return;
+            if ((e.key === "Backspace" || e.key === "Delete") && el.selectionStart === el.selectionEnd) {
+                const pos = el.selectionStart;
+                const val = el.value || "";
+                if (e.key === "Backspace" && pos > 0 && val[pos - 1] === ",") {
+                    e.preventDefault();
+                    const deleteIdx = pos - 2;
+                    if (deleteIdx >= 0) {
+                        el.value = val.slice(0, deleteIdx) + val.slice(pos);
+                        el.setSelectionRange(deleteIdx, deleteIdx);
+                        el.dispatchEvent(new Event("input", { bubbles: true }));
+                    }
+                } else if (e.key === "Delete" && pos < val.length && val[pos] === ",") {
+                    e.preventDefault();
+                    const deleteIdx = pos + 1;
+                    if (deleteIdx < val.length) {
+                        el.value = val.slice(0, pos) + val.slice(deleteIdx + 1);
+                        el.setSelectionRange(pos, pos);
+                        el.dispatchEvent(new Event("input", { bubbles: true }));
+                    }
+                }
+            }
+        });
+
+        window.formatAndSyncInput = function(inputEl) {
+            if (!inputEl) return;
+            const originalValue = inputEl.value;
+            const selectionStart = inputEl.selectionStart ?? originalValue.length;
+
+            const leftPart = originalValue.slice(0, selectionStart);
+            const digitsBeforeCursor = (leftPart.match(/[0-9]/g) || []).length;
+
+            let rawDigits = originalValue.replace(/[^0-9]/g, "");
+            if (rawDigits === "") {
+                inputEl.value = "";
+                return;
+            }
+            if (rawDigits.length > 11) {
+                rawDigits = rawDigits.slice(0, 11);
+            }
+
+            const formatted = rawDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            if (inputEl.value !== formatted) {
+                inputEl.value = formatted;
+            }
+
+            let newCursorPos = 0;
+            if (digitsBeforeCursor === 0) {
+                newCursorPos = 0;
+            } else {
+                let seenDigits = 0;
+                for (let i = 0; i < formatted.length; i++) {
+                    if (/[0-9]/.test(formatted[i])) {
+                        seenDigits++;
+                        if (seenDigits === digitsBeforeCursor) {
+                            newCursorPos = i + 1;
+                            break;
+                        }
+                    }
+                }
+                if (seenDigits < digitsBeforeCursor) {
+                    newCursorPos = formatted.length;
+                }
+            }
+
+            try {
+                inputEl.setSelectionRange(newCursorPos, newCursorPos);
+            } catch (err) {}
+        };
+
+        document.addEventListener("focusout", function(e) {
+            const el = e.target;
+            if (el && el.tagName === "INPUT" && el.getAttribute("inputmode") === "numeric") {
+                const rawDigits = el.value.replace(/[^0-9]/g, "");
+                if (rawDigits !== "") {
+                    el.value = Number(rawDigits).toLocaleString("zh-TW");
+                    window.handleDataChange();
+                }
+            }
+        });
+
+        window.setFormattedInputValue = function(elementId, val) {
+            const el = document.getElementById(elementId);
+            if (el) {
+                el.value = Math.round(Number(val || 0)).toLocaleString('zh-TW');
+            }
+        };
+
+        // ==================== 3. 步驟與滑桿即時連動引擎 ====================
+        window.goToStep = function(stepNum) {
+            for (let i = 1; i <= 4; i++) {
+                const sec = document.getElementById(`wizardStep${i}`);
+                const ind = document.getElementById(`stepIndicator${i}`);
+                if (sec) sec.classList.add("hidden");
+                if (ind) {
+                    ind.className = "cursor-pointer p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 flex items-center gap-3 transition opacity-60";
+                    ind.querySelector("div").className = "w-8 h-8 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm shrink-0";
+                }
+            }
+            const targetSec = document.getElementById(`wizardStep${stepNum}`);
+            const targetInd = document.getElementById(`stepIndicator${stepNum}`);
+            if (targetSec) targetSec.classList.remove("hidden");
+            if (targetInd) {
+                targetInd.className = "cursor-pointer p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 flex items-center gap-3 transition";
+                targetInd.querySelector("div").className = "w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0";
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.handleDataChange();
+        };
+
+        window.updateSensitivitySimulation = function() {
+            window.handleDataChange();
+        };
+
+        window.resetSensitivitySliders = function() {
+            document.getElementById("sliderPortfolioYield").value = 0.06;
+            document.getElementById("sliderExtendYears").value = 0;
+            document.getElementById("sliderReduceExpense").value = 0;
+            document.getElementById("toggleUseLeverage").checked = false;
+            window.handleDataChange();
+            window.showToast("🔄 已重置 4 軸向敏感度調校滑桿");
+        };
+
+        window.switchGoalType = function(type) {
+            window.financialProfile.financialGoal.goalType = type;
+            const btnCombo = document.getElementById("tabCombo");
+            const btnRet = document.getElementById("tabRetirement");
+            const btnGen = document.getElementById("tabGeneral");
+
+            const retireTargetAgeBox = document.getElementById("retireTargetAgeBox");
+            const retireDesiredExpBox = document.getElementById("retireDesiredExpBox");
+            const retirementSpecificFields = document.getElementById("retirementSpecificFields");
+            const multiGoalsSection = document.getElementById("multiGoalsSection");
+            const retireHeader = document.getElementById("retireSectionHeaderTitle");
+
+            const activeClass = "px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition shadow-2xs bg-indigo-600 text-white cursor-pointer";
+            const inactiveClass = "px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition text-slate-600 hover:text-slate-900 cursor-pointer";
+
+            if (btnCombo) btnCombo.className = type === "COMBO" ? activeClass : inactiveClass;
+            if (btnRet) btnRet.className = type === "RETIREMENT" ? activeClass : inactiveClass;
+            if (btnGen) btnGen.className = type === "GENERAL" ? activeClass : inactiveClass;
+
+            if (type === "COMBO") {
+                retireHeader.textContent = "1. 核心退休目標與勞保勞退參數";
+                retireTargetAgeBox?.classList.remove("hidden");
+                retireDesiredExpBox?.classList.remove("hidden");
+                retirementSpecificFields?.classList.remove("hidden");
+                multiGoalsSection?.classList.remove("hidden");
+            } else if (type === "RETIREMENT") {
+                retireHeader.textContent = "退休專屬目標與勞保勞退參數";
+                retireTargetAgeBox?.classList.remove("hidden");
+                retireDesiredExpBox?.classList.remove("hidden");
+                retirementSpecificFields?.classList.remove("hidden");
+                multiGoalsSection?.classList.add("hidden");
+            } else {
+                retireHeader.textContent = "基本年齡設定";
+                retireTargetAgeBox?.classList.add("hidden");
+                retireDesiredExpBox?.classList.add("hidden");
+                retirementSpecificFields?.classList.add("hidden");
+                multiGoalsSection?.classList.remove("hidden");
+            }
+            window.renderMultiGoalsList();
+            window.handleDataChange();
+        };
+
+        window.handleDataChange = function() {
+            const bs = window.financialProfile.balanceSheet;
+            bs.assets.liquid = parseTWDInput(document.getElementById("assetLiquid")?.value);
+            bs.assets.investment = parseTWDInput(document.getElementById("assetInvestment")?.value);
+            bs.assets.personal = parseTWDInput(document.getElementById("assetPersonal")?.value);
+            bs.liabilities.shortTerm = parseTWDInput(document.getElementById("liabShortTerm")?.value);
+            bs.liabilities.longTerm = parseTWDInput(document.getElementById("liabLongTerm")?.value);
+
+            const totalAssets = bs.assets.liquid + bs.assets.investment + bs.assets.personal;
+            const totalLiab = bs.liabilities.shortTerm + bs.liabilities.longTerm;
+            bs.netWorth = totalAssets - totalLiab;
+
+            const cf = window.financialProfile.cashFlow;
+            cf.income.salary = parseTWDInput(document.getElementById("incSalary")?.value);
+            cf.income.other = parseTWDInput(document.getElementById("incOther")?.value);
+            cf.expenses.essential = parseTWDInput(document.getElementById("expEssential")?.value);
+            cf.expenses.discretionary = parseTWDInput(document.getElementById("expDiscretionary")?.value);
+
+            const totalInc = cf.income.salary + cf.income.other;
+            const totalExp = cf.expenses.essential + cf.expenses.discretionary;
+            cf.monthlySurplus = totalInc - totalExp;
+            cf.savingsRate = totalInc > 0 ? (cf.monthlySurplus / totalInc) : 0;
+
+            const debtRatio = totalAssets > 0 ? (totalLiab / totalAssets) : (totalLiab > 0 ? 1 : 0);
+            const emergencyMonths = totalExp > 0 ? (bs.assets.liquid / totalExp) : 0;
+
+            const s1Nw = document.getElementById("step1QuickNetWorth");
+            const s1Sp = document.getElementById("step1QuickSurplus");
+            if (s1Nw) {
+                s1Nw.textContent = formatTWD(bs.netWorth);
+                s1Nw.className = bs.netWorth >= 0 ? "text-base sm:text-lg font-extrabold text-indigo-700 break-all" : "text-base sm:text-lg font-extrabold text-rose-600 break-all";
+            }
+            if (s1Sp) {
+                s1Sp.textContent = formatTWD(cf.monthlySurplus);
+                s1Sp.className = cf.monthlySurplus >= 0 ? "text-base sm:text-lg font-extrabold text-emerald-600 break-all" : "text-base sm:text-lg font-extrabold text-rose-600 break-all";
+            }
+
+            const warnBanner = document.getElementById("deficitWarningBanner");
+            const warnText = document.getElementById("deficitWarningText");
+            if (warnBanner && warnText) {
+                const warnings = [];
+                if (cf.monthlySurplus < 0) warnings.push(`【收支赤字警告】目前每月入不敷出（赤字 ${formatTWD(Math.abs(cf.monthlySurplus))}），系統已啟動「財務止血模式」。`);
+                if (bs.netWorth < 0) warnings.push(`【資不抵債警告】目前個人總負債大於總資產（淨值 ${formatTWD(bs.netWorth)}），已強制鎖定禁用「貸款槓桿」。`);
+                if (warnings.length > 0) {
+                    warnText.innerHTML = warnings.join("<br>");
+                    warnBanner.classList.remove("hidden");
+                } else {
+                    warnBanner.classList.add("hidden");
+                }
+            }
+
+            document.getElementById("metricSavingsRate").textContent = (cf.savingsRate * 100).toFixed(1) + "%";
+            document.getElementById("metricEmergencyMonths").textContent = emergencyMonths.toFixed(1) + " 個月";
+            document.getElementById("metricDebtRatio").textContent = (debtRatio * 100).toFixed(1) + "%";
+
+            document.getElementById("sumLiquid").textContent = formatTWD(bs.assets.liquid);
+            document.getElementById("sumInvestment").textContent = formatTWD(bs.assets.investment);
+            document.getElementById("sumPersonal").textContent = formatTWD(bs.assets.personal);
+            document.getElementById("sumTotalAssets").textContent = formatTWD(totalAssets);
+            document.getElementById("sumShortLiab").textContent = formatTWD(bs.liabilities.shortTerm);
+            document.getElementById("sumLongLiab").textContent = formatTWD(bs.liabilities.longTerm);
+            document.getElementById("sumTotalLiab").textContent = formatTWD(totalLiab);
+            document.getElementById("sumNetWorth").textContent = formatTWD(bs.netWorth);
+
+            document.getElementById("sumSalary").textContent = formatTWD(cf.income.salary);
+            document.getElementById("sumOtherInc").textContent = formatTWD(cf.income.other);
+            document.getElementById("sumTotalIncome").textContent = formatTWD(totalInc);
+            document.getElementById("sumEssentialExp").textContent = formatTWD(cf.expenses.essential);
+            document.getElementById("sumDiscretionaryExp").textContent = formatTWD(cf.expenses.discretionary);
+            document.getElementById("sumTotalExp").textContent = formatTWD(totalExp);
+            document.getElementById("sumMonthlySurplus").textContent = formatTWD(cf.monthlySurplus);
+
+            window.runFeasibilityEngine();
+
+            // 自動記憶機制：只要使用者修改任何數字或滑桿，自動將最新狀態寫入本機與目前工作檔
+            if (!isApplyingProfile && hasUserLoggedInThisSession) {
+                clearTimeout(window._autoSaveTimer);
+                window._autoSaveTimer = setTimeout(() => {
+                    window.saveProfileToCloud(false, true);
+                }, 400);
+            }
+        };
+
+        window.runFeasibilityEngine = function() {
+            const fg = window.financialProfile.financialGoal;
+            const bs = window.financialProfile.balanceSheet;
+            const cf = window.financialProfile.cashFlow;
+            const strat = window.financialProfile.adjustmentStrategies;
+
+            const currAge = Math.max(18, Math.min(95, parseTWDInput(document.getElementById("currentAge")?.value) || 35));
+            fg.currentAge = currAge;
+
+            let rawYield = Number(document.getElementById("sliderPortfolioYield")?.value);
+            if (isNaN(rawYield) || rawYield <= 0) rawYield = 0.06;
+            if (rawYield > 1) rawYield = rawYield / 100;
+
+            const extendYrs = Number(document.getElementById("sliderExtendYears")?.value) || 0;
+            const reduceExp = Number(document.getElementById("sliderReduceExpense")?.value) || 0;
+            const leverageToggle = document.getElementById("toggleUseLeverage");
+
+            if (bs.netWorth < 0 && leverageToggle) {
+                leverageToggle.checked = false;
+                leverageToggle.disabled = true;
+                document.getElementById("leverageStatusNote").textContent = "⚠️ 個人淨值為負，已自動鎖定禁用貸款槓桿。";
+            } else if (leverageToggle) {
+                leverageToggle.disabled = false;
+                document.getElementById("leverageStatusNote").textContent = "淨值為正可提升約 15% 累積效益；負淨值自動鎖定。";
+            }
+            const useLev = leverageToggle?.checked || false;
+
+            strat.selectedPortfolioYield = rawYield;
+            strat.extendYears = extendYrs;
+            strat.reducedMonthlyExpense = reduceExp;
+            strat.useLeverageLoan = useLev;
+
+            document.getElementById("lblPortfolioYield").textContent = (rawYield * 100).toFixed(1) + "%";
+            document.getElementById("lblExtendYears").textContent = extendYrs + " 年";
+            document.getElementById("lblReduceExpense").textContent = formatTWD(reduceExp) + " /月";
+
+            const netInvestableAssets = Math.max(0, bs.assets.investment + bs.assets.liquid * 0.5);
+            const adjustedMonthlySurplus = cf.monthlySurplus + reduceExp;
+
+            let yearsRemaining = 30;
+            let requiredPoolFV = 0;
+            let retireOnlyPoolFV = 0;
+            let multiGoalsPoolFV = 0;
+            let projectedPool = 0;
+            let lifeExpectancy = 85;
+            let retirementYears = 20;
+            const inflationRate = 0.02;
+            const monthlyRate = rawYield / 12;
+
+            const activeMultiGoals = (fg.additionalGoals || []).filter(g => g.enabled);
+            const includeRetirement = (fg.goalType === "COMBO" || fg.goalType === "RETIREMENT");
+            const includeMultiGoals = (fg.goalType === "COMBO" || fg.goalType === "GENERAL");
+
+            if (includeRetirement) {
+                const baseTargetAge = Math.max(currAge + 1, Math.min(100, parseTWDInput(document.getElementById("targetAge")?.value) || 65));
+                fg.baseTargetAge = baseTargetAge;
+                const effectiveTargetAge = baseTargetAge + extendYrs;
+                fg.targetAge = effectiveTargetAge;
+                yearsRemaining = Math.max(1, effectiveTargetAge - currAge);
+                fg.yearsRemaining = yearsRemaining;
+
+                const desiredMonthly = parseTWDInput(document.getElementById("desiredMonthlyExpense")?.value) || 40000;
+                fg.desiredMonthlyExpense = desiredMonthly;
+
+                lifeExpectancy = 81 + Math.floor((effectiveTargetAge - currAge) / 3);
+                retirementYears = Math.max(5, lifeExpectancy - effectiveTargetAge);
+
+                const futureMonthlyExpense = desiredMonthly * Math.pow(1 + inflationRate, yearsRemaining);
+                const annualExpenseFV = futureMonthlyExpense * 12;
+
+                const postRetireDiscount = 0.03;
+                const grossRequiredPoolFV = annualExpenseFV * ((1 - Math.pow(1 + postRetireDiscount, -retirementYears)) / postRetireDiscount);
+
+                const insSalary = parseTWDInput(document.getElementById("insuredSalary")?.value) || 45800;
+                const baseInsYears = Math.max(0, Math.min(60, parseTWDInput(document.getElementById("insuredYears")?.value) || 35));
+                const effectiveInsYears = baseInsYears + extendYrs;
+                const laborInsMonthly = Math.round(insSalary * effectiveInsYears * 0.0155);
+                const laborPensionPV = parseTWDInput(document.getElementById("laborPensionPV")?.value) || 450000;
+
+                fg.retirementSpecifics.insuredSalary = insSalary;
+                fg.retirementSpecifics.insuredYears = baseInsYears;
+                fg.retirementSpecifics.laborPensionPresentValue = laborPensionPV;
+                fg.retirementSpecifics.laborInsuranceMonthly = laborInsMonthly;
+
+                const laborPensionFV = laborPensionFVCalc(laborPensionPV, yearsRemaining);
+                const laborInsPVAtRetire = (laborInsMonthly * 12) * ((1 - Math.pow(1 + 0.03, -retirementYears)) / 0.03);
+                const totalGovPensionFV = laborPensionFV + laborInsPVAtRetire;
+
+                retireOnlyPoolFV = Math.max(0, grossRequiredPoolFV - totalGovPensionFV);
+            } else {
+                // 僅規劃中短期多目標時，以最長目標年限作為整體評估主時間軸
+                const maxGoalYrs = activeMultiGoals.length > 0
+                    ? Math.max(...activeMultiGoals.map(g => Number(g.years) || 5))
+                    : (parseTWDInput(document.getElementById("targetYears")?.value) || 5);
+                fg.targetYears = maxGoalYrs;
+                yearsRemaining = Math.max(1, maxGoalYrs + extendYrs);
+                fg.yearsRemaining = yearsRemaining;
+                fg.targetAge = currAge + yearsRemaining;
+            }
+
+            // 計算每一筆啟用中的中短期目標：通膨後實際需求、每月所需專款定期定額、以及折算至主評估終點(yearsRemaining)的機會成本終值
+            const goalBreakdowns = [];
+            if (includeMultiGoals && activeMultiGoals.length > 0) {
+                activeMultiGoals.forEach(g => {
+                    const effYrs = Math.max(1, (Number(g.years) || 5) + (includeRetirement ? 0 : extendYrs));
+                    const fvAtGoalYear = (Number(g.amount) || 0) * Math.pow(1 + inflationRate, effYrs);
+                    const gMonths = effYrs * 12;
+                    const requiredMonthlyPMT = monthlyRate > 0
+                        ? fvAtGoalYear * monthlyRate / (Math.pow(1 + monthlyRate, gMonths) - 1)
+                        : fvAtGoalYear / gMonths;
+
+                    // 將該筆目標在達成年度領出花掉的資金，折算至主時間軸終點(yearsRemaining)的等效終值負擔
+                    const yearDiffToHorizon = yearsRemaining - effYrs;
+                    const equivalentHorizonFV = yearDiffToHorizon >= 0
+                        ? fvAtGoalYear * Math.pow(1 + rawYield, yearDiffToHorizon)
+                        : fvAtGoalYear / Math.pow(1 + rawYield, Math.abs(yearDiffToHorizon));
+
+                    multiGoalsPoolFV += equivalentHorizonFV;
+                    goalBreakdowns.push({
+                        id: g.id,
+                        name: g.name,
+                        presentAmount: Number(g.amount) || 0,
+                        effectiveYears: effYrs,
+                        targetAgeAtGoal: currAge + effYrs,
+                        fvAtGoalYear: Math.round(fvAtGoalYear),
+                        requiredMonthlyPMT: Math.round(requiredMonthlyPMT),
+                        equivalentHorizonFV: Math.round(equivalentHorizonFV),
+                        priority: g.priority || "中 (階段成長)"
+                    });
+                });
+            }
+
+            requiredPoolFV = retireOnlyPoolFV + multiGoalsPoolFV;
+
+            // 更新畫面上的試算說明文字
+            if (fg.goalType === "COMBO") {
+                document.getElementById("rptAdjustedTime").textContent = `${fg.targetAge} 歲退休 + ${goalBreakdowns.length} 項目標`;
+                document.getElementById("rptLifeExpectancyNote").textContent = `壽命預估 ${lifeExpectancy} 歲 | 多目標並行`;
+                document.getElementById("rptGovPensionNote").textContent = `退休 ${formatTWD(retireOnlyPoolFV)} + 多目標折算`;
+            } else if (fg.goalType === "RETIREMENT") {
+                document.getElementById("rptAdjustedTime").textContent = `${fg.targetAge} 歲 (尚餘 ${yearsRemaining} 年)`;
+                document.getElementById("rptLifeExpectancyNote").textContent = `預估壽命 ${lifeExpectancy} 歲 (支應 ${retirementYears} 年)`;
+                document.getElementById("rptGovPensionNote").textContent = `已扣勞保月領 ${formatTWD(fg.retirementSpecifics.laborInsuranceMonthly)} 及勞退`;
+            } else {
+                document.getElementById("rptAdjustedTime").textContent = `${yearsRemaining} 年期 (${goalBreakdowns.length} 項目標)`;
+                document.getElementById("rptLifeExpectancyNote").textContent = goalBreakdowns.map(b => b.name).join("、") || "中短期多目標";
+                document.getElementById("rptGovPensionNote").textContent = `含 2% 通膨與各目標期程複利折算`;
+            }
+
+            const totalMonths = yearsRemaining * 12;
+            const baseFV = netInvestableAssets * Math.pow(1 + rawYield, yearsRemaining);
+            const pmtFV = adjustedMonthlySurplus > 0
+                ? adjustedMonthlySurplus * ((Math.pow(1 + monthlyRate, totalMonths) - 1) / monthlyRate)
+                : 0;
+
+            projectedPool = baseFV + pmtFV;
+            if (useLev && bs.netWorth > 0) {
+                projectedPool *= 1.15;
+            }
+
+            const shortfall = requiredPoolFV - projectedPool;
+            const achievementRate = requiredPoolFV > 0 ? Math.min(300, Math.round((projectedPool / requiredPoolFV) * 100)) : 100;
+            const isFeasible = projectedPool >= requiredPoolFV;
+
+            fg.feasibility = {
+                isFeasible,
+                shortfallAmount: Math.round(Math.abs(shortfall)),
+                projectedNetWorthAtGoal: Math.round(projectedPool),
+                achievementRate,
+                requiredPoolFV: Math.round(requiredPoolFV),
+                retireOnlyPoolFV: Math.round(retireOnlyPoolFV),
+                multiGoalsPoolFV: Math.round(multiGoalsPoolFV),
+                lifeExpectancy,
+                retirementYears,
+                goalBreakdowns
+            };
+
+            document.getElementById("rptTargetPool").textContent = formatTWD(requiredPoolFV);
+            document.getElementById("rptProjectedPool").textContent = formatTWD(projectedPool);
+            document.getElementById("rptMonthlyInvestNote").textContent = `年化 ${(rawYield * 100).toFixed(1)}% | 月投 ${formatTWD(Math.max(0, adjustedMonthlySurplus))}`;
+
+            const badge = document.getElementById("feasibilityBadge");
+            if (isFeasible) {
+                badge.className = "px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs sm:text-sm text-center whitespace-nowrap shrink-0";
+                badge.textContent = `🎉 綜合達標！達成率 ${achievementRate}% (盈餘 ${formatTWD(projectedPool - requiredPoolFV)})`;
+                document.getElementById("rptSnapGap").textContent = `+${formatTWD(projectedPool - requiredPoolFV)}`;
+                document.getElementById("rptSnapGap").className = "text-base sm:text-lg font-black text-emerald-400 whitespace-nowrap truncate";
+            } else {
+                badge.className = "px-3.5 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 font-bold text-xs sm:text-sm text-center whitespace-nowrap shrink-0";
+                badge.textContent = `⚠️ 綜合達成率 ${achievementRate}% (總缺口 ${formatTWD(shortfall)})`;
+                document.getElementById("rptSnapGap").textContent = `-${formatTWD(shortfall)}`;
+                document.getElementById("rptSnapGap").className = "text-base sm:text-lg font-black text-rose-400 whitespace-nowrap truncate";
+            }
+
+            window.syncDynamicProfileTitle(false);
+            window.syncStep4LiveSummaryAndReport();
+        };
+
+        function laborPensionFVCalc(pv, yrs) {
+            return (Number(pv) || 0) * Math.pow(1 + 0.03, yrs);
+        }
+
+        window.syncStep4LiveSummaryAndReport = function() {
+            const fg = window.financialProfile.financialGoal;
+            const bs = window.financialProfile.balanceSheet;
+            const cf = window.financialProfile.cashFlow;
+            const strat = window.financialProfile.adjustmentStrategies;
+            const feas = fg.feasibility;
+
+            const nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
+            const tsEl = document.getElementById("rptHeaderTimestamp");
+            if (tsEl) tsEl.textContent = `最後精算時間：${nowStr}`;
+
+            const nwEl = document.getElementById("rptLiveNetWorth");
+            if (nwEl) nwEl.textContent = `${formatTWD(bs.netWorth)} / 月結餘 ${formatTWD(cf.monthlySurplus)}`;
+
+            const goalEl = document.getElementById("rptLiveGoalSummary");
+            if (goalEl) {
+                const gCount = (feas.goalBreakdowns || []).length;
+                if (fg.goalType === "COMBO") {
+                    goalEl.textContent = `${fg.targetAge}歲退休 + ${gCount}項目標並行`;
+                } else if (fg.goalType === "RETIREMENT") {
+                    goalEl.textContent = `${fg.targetAge} 歲退休 (準備期 ${fg.yearsRemaining} 年)`;
+                } else {
+                    goalEl.textContent = `${gCount} 項中短期目標 (${fg.yearsRemaining} 年期)`;
+                }
+            }
+
+            const stratEl = document.getElementById("rptLiveStrategySummary");
+            if (stratEl) {
+                stratEl.textContent = `年化 ${(strat.selectedPortfolioYield * 100).toFixed(1)}% / 月省 ${formatTWD(strat.reducedMonthlyExpense)}`;
+            }
+
+            const achEl = document.getElementById("rptLiveAchievement");
+            if (achEl) {
+                achEl.textContent = feas.isFeasible
+                    ? `達成率 ${feas.achievementRate}% (盈餘 ${formatTWD(feas.shortfallAmount)})`
+                    : `達成率 ${feas.achievementRate}% (缺口 ${formatTWD(feas.shortfallAmount)})`;
+            }
+
+            const container = document.getElementById("aiReportContentContainer");
+            if (container) {
+                const updatedMarkdown = generateStructuredAdvisorReport(fg, bs, cf, strat);
+                window.financialProfile.aiGeneratedReport = {
+                    status: "COMPLETED",
+                    markdownContent: updatedMarkdown,
+                    generatedAt: new Date().toISOString()
+                };
+                container.innerHTML = parseMarkdownToHTML(updatedMarkdown);
+            }
+        };
+
+        function buildDynamicProfileTitle(existingTitle = "") {
+            const fg = window.financialProfile.financialGoal;
+            const strat = window.financialProfile.adjustmentStrategies;
+            const rate = fg.feasibility?.achievementRate ?? 0;
+            const yieldPct = ((strat.selectedPortfolioYield || 0.06) * 100).toFixed(1);
+            const gCount = (fg.feasibility?.goalBreakdowns || []).length;
+
+            let latestMetricsSuffix = "";
+            let defaultBaseName = "綜合財務規劃";
+
+            if (fg.goalType === "COMBO") {
+                latestMetricsSuffix = `(${fg.targetAge}歲退休+${gCount}目標 / 報酬${yieldPct}% / 達成率${rate}%)`;
+                defaultBaseName = "退休與多目標綜合規劃";
+            } else if (fg.goalType === "RETIREMENT") {
+                latestMetricsSuffix = `(${fg.targetAge}歲退休 / 報酬${yieldPct}% / 達成率${rate}%)`;
+                defaultBaseName = "退休專屬規劃";
+            } else {
+                latestMetricsSuffix = `(${gCount}項目標 / 報酬${yieldPct}% / 達成率${rate}%)`;
+                defaultBaseName = "中短期多目標規劃";
+            }
+
+            if (!existingTitle || !existingTitle.trim()) {
+                return `${defaultBaseName} ${latestMetricsSuffix}`;
+            }
+
+            const strippedPrefix = existingTitle
+                .replace(/\s*\([^)]*達成率\d+%[^)]*\)\s*$/g, "")
+                .trim();
+
+            const finalPrefix = strippedPrefix || defaultBaseName;
+            return `${finalPrefix} ${latestMetricsSuffix}`;
+        }
+
+        window.syncDynamicProfileTitle = function(forceReset = false) {
+            const titleInput = document.getElementById("cloudProfileTitleInput");
+            if (!titleInput) return;
+            if (forceReset) {
+                delete titleInput.dataset.userEdited;
+                titleInput.value = buildDynamicProfileTitle("");
+            } else {
+                titleInput.value = buildDynamicProfileTitle(titleInput.value);
+            }
+        };
+
+        // ==================== 4. 永久儲存與讀取同步引擎 (跨登出/重開機 100% 記憶) ====================
+        function getLocalStorageKey() {
+            const accKey = getNormalizedAccountKey(currentUser);
+            return `pfg_saved_profiles_${accKey}`;
+        }
+
+        function loadFromLocalBackup() {
+            try {
+                const primaryRaw = localStorage.getItem(getLocalStorageKey());
+                if (primaryRaw) {
+                    const parsed = JSON.parse(primaryRaw);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                }
+                const globalLatestRaw = localStorage.getItem("pfg_global_latest_profiles");
+                if (globalLatestRaw) {
+                    const parsedGlobal = JSON.parse(globalLatestRaw);
+                    if (Array.isArray(parsedGlobal) && parsedGlobal.length > 0) return parsedGlobal;
+                }
+                return [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveToLocalBackup(profilesList) {
+            try {
+                localStorage.setItem(getLocalStorageKey(), JSON.stringify(profilesList));
+                localStorage.setItem("pfg_global_latest_profiles", JSON.stringify(profilesList));
+            } catch (e) {
+                console.warn("Local backup write warning:", e);
+            }
+        }
+
+        async function fetchCloudProfiles(autoApplyLatest = false) {
+            let cloudList = [];
+            const localList = loadFromLocalBackup();
+
+            if (currentUser && db && !String(currentUser.uid).startsWith("local_") && !String(currentUser.uid).startsWith("user_") && !String(currentUser.uid).startsWith("guest_")) {
+                try {
+                    const colRef = collection(db, "artifacts", appId, "users", currentUser.uid, "financial_profiles");
+                    const snap = await getDocs(colRef);
+                    snap.forEach(docSnap => {
+                        cloudList.push({ id: docSnap.id, ...docSnap.data() });
+                    });
+                } catch (err) {
+                    console.warn("Firestore read fallback to local:", err);
+                }
+            }
+
+            const mergedMap = new Map();
+            [...localList, ...cloudList].forEach(item => {
+                const id = item.id || item._id;
+                if (!id) return;
+                const existing = mergedMap.get(id);
+                if (!existing || (item.updatedAtMs || 0) >= (existing.updatedAtMs || 0)) {
+                    mergedMap.set(id, { ...item, id });
+                }
+            });
+
+            savedCloudProfiles = Array.from(mergedMap.values()).sort((a, b) => (b.updatedAtMs || 0) - (a.updatedAtMs || 0));
+            saveToLocalBackup(savedCloudProfiles);
+
+            const badge = document.getElementById("cloudCountBadge");
+            if (badge) badge.textContent = savedCloudProfiles.length;
+
+            if (autoApplyLatest && savedCloudProfiles.length > 0) {
+                applyProfileDataToUI(savedCloudProfiles[0]);
+                window.showToast(`☁️ 已自動載入您上次儲存的設定：「${savedCloudProfiles[0].profileTitle}」`);
+            } else if (autoApplyLatest && savedCloudProfiles.length === 0) {
+                window.saveProfileToCloud(true, true);
+            } else {
+                updateActiveProfileBanner();
+            }
+            window.renderCloudProfilesList();
+        }
+
+        function updateActiveProfileBanner() {
+            const bannerEl = document.getElementById("activeProfileBannerTitle");
+            if (!bannerEl) return;
+            const currentActive = activeCloudProfileId
+                ? savedCloudProfiles.find(p => p.id === activeCloudProfileId)
+                : savedCloudProfiles[0];
+            if (currentActive) {
+                bannerEl.textContent = `${currentActive.profileTitle} （已自動儲存：${currentActive.updatedAt || "剛剛"}）`;
+            } else {
+                bannerEl.textContent = buildDynamicProfileTitle("尚未儲存之新規劃");
+            }
+        }
+
+        window.saveProfileToCloud = async function(forceCreateNew = false, silent = false) {
+            const titleInput = document.getElementById("cloudProfileTitleInput");
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            let existingDoc = null;
+            if (!forceCreateNew && activeCloudProfileId) {
+                existingDoc = savedCloudProfiles.find(p => p.id === activeCloudProfileId);
+            } else if (!forceCreateNew && savedCloudProfiles.length > 0) {
+                existingDoc = savedCloudProfiles[0];
+            }
+
+            const profileId = (forceCreateNew || !existingDoc) ? ("profile_" + Date.now()) : existingDoc.id;
+            const rawInputTitle = (titleInput && titleInput.value.trim()) ? titleInput.value.trim() : (existingDoc?.profileTitle || "");
+            const updatedTitle = buildDynamicProfileTitle(rawInputTitle);
+
+            const payload = JSON.parse(JSON.stringify(window.financialProfile));
+            payload.id = profileId;
+            payload._id = profileId;
+            payload.userId = currentUser?.uid || "guest_default_user";
+            payload.profileTitle = updatedTitle;
+            payload.createdAt = (!forceCreateNew && existingDoc?.createdAt) ? existingDoc.createdAt : timeStr;
+            payload.updatedAt = timeStr;
+            payload.updatedAtMs = Date.now();
+
+            const idx = savedCloudProfiles.findIndex(p => p.id === profileId);
+            if (idx >= 0) {
+                savedCloudProfiles[idx] = payload;
+            } else {
+                savedCloudProfiles.unshift(payload);
+            }
+            savedCloudProfiles.sort((a, b) => (b.updatedAtMs || 0) - (a.updatedAtMs || 0));
+            saveToLocalBackup(savedCloudProfiles);
+
+            activeCloudProfileId = profileId;
+            if (titleInput) titleInput.value = updatedTitle;
+
+            if (currentUser && db && !String(currentUser.uid).startsWith("local_") && !String(currentUser.uid).startsWith("user_") && !String(currentUser.uid).startsWith("guest_")) {
+                try {
+                    const docRef = doc(db, "artifacts", appId, "users", currentUser.uid, "financial_profiles", profileId);
+                    await setDoc(docRef, payload);
+                } catch (cloudErr) {
+                    console.warn("Firestore sync skipped, saved in local storage:", cloudErr);
+                }
+            }
+
+            const badge = document.getElementById("cloudCountBadge");
+            if (badge) badge.textContent = savedCloudProfiles.length;
+            updateActiveProfileBanner();
+            window.renderCloudProfilesList();
+
+            if (!silent) {
+                const actionLabel = (forceCreateNew || !existingDoc) ? "已另存為新檔案" : "已覆蓋更新目前紀錄";
+                window.showToast(`💾 ${actionLabel}：「${updatedTitle}」`);
+                const modal = document.getElementById("cloudModal");
+                if (modal && !modal.classList.contains("hidden")) {
+                    window.toggleCloudModal();
+                }
+            }
+        };
+
+        window.loadCloudProfileById = function(id) {
+            const target = savedCloudProfiles.find(p => p.id === id || p._id === id);
+            if (!target) {
+                window.showToast("⚠️ 找不到該筆紀錄");
+                return;
+            }
+            applyProfileDataToUI(target);
+            window.showToast(`📂 已成功讀取並套用：「${target.profileTitle}」`);
+            const modal = document.getElementById("cloudModal");
+            if (modal && !modal.classList.contains("hidden")) {
+                window.toggleCloudModal();
+            }
+        };
+
+        window.deleteCloudProfileById = async function(id) {
+            savedCloudProfiles = savedCloudProfiles.filter(p => p.id !== id && p._id !== id);
+            saveToLocalBackup(savedCloudProfiles);
+            if (activeCloudProfileId === id) {
+                activeCloudProfileId = savedCloudProfiles[0]?.id || null;
+            }
+
+            if (currentUser && db && !String(currentUser.uid).startsWith("local_") && !String(currentUser.uid).startsWith("user_") && !String(currentUser.uid).startsWith("guest_")) {
+                try {
+                    const docRef = doc(db, "artifacts", appId, "users", currentUser.uid, "financial_profiles", id);
+                    await deleteDoc(docRef);
+                } catch (e) {}
+            }
+
+            const badge = document.getElementById("cloudCountBadge");
+            if (badge) badge.textContent = savedCloudProfiles.length;
+            updateActiveProfileBanner();
+            window.renderCloudProfilesList();
+            window.showToast("🗑️ 已刪除該筆規劃紀錄");
+        };
+
+        function applyProfileDataToUI(target) {
+            if (!target) return;
+            isApplyingProfile = true;
+            try {
+                activeCloudProfileId = target.id || target._id || null;
+
+                if (target.balanceSheet) {
+                    window.setFormattedInputValue("assetLiquid", target.balanceSheet.assets?.liquid ?? 300000);
+                    window.setFormattedInputValue("assetInvestment", target.balanceSheet.assets?.investment ?? 1200000);
+                    window.setFormattedInputValue("assetPersonal", target.balanceSheet.assets?.personal ?? 8000000);
+                    window.setFormattedInputValue("liabShortTerm", target.balanceSheet.liabilities?.shortTerm ?? 50000);
+                    window.setFormattedInputValue("liabLongTerm", target.balanceSheet.liabilities?.longTerm ?? 5000000);
+                }
+
+                if (target.cashFlow) {
+                    window.setFormattedInputValue("incSalary", target.cashFlow.income?.salary ?? 70000);
+                    window.setFormattedInputValue("incOther", target.cashFlow.income?.other ?? 5000);
+                    window.setFormattedInputValue("expEssential", target.cashFlow.expenses?.essential ?? 35000);
+                    window.setFormattedInputValue("expDiscretionary", target.cashFlow.expenses?.discretionary ?? 15000);
+                }
+
+                const extYears = Number(target.adjustmentStrategies?.extendYears ?? 0);
+                if (target.adjustmentStrategies) {
+                    let savedYield = Number(target.adjustmentStrategies.selectedPortfolioYield ?? 0.06);
+                    if (savedYield > 1) savedYield = savedYield / 100;
+                    document.getElementById("sliderPortfolioYield").value = savedYield;
+                    document.getElementById("sliderExtendYears").value = extYears;
+                    document.getElementById("sliderReduceExpense").value = Number(target.adjustmentStrategies.reducedMonthlyExpense ?? 0);
+                    document.getElementById("toggleUseLeverage").checked = !!target.adjustmentStrategies.useLeverageLoan;
+                }
+
+                if (target.financialGoal) {
+                    const gType = target.financialGoal.goalType || "COMBO";
+                    if (Array.isArray(target.financialGoal.additionalGoals)) {
+                        window.financialProfile.financialGoal.additionalGoals = JSON.parse(JSON.stringify(target.financialGoal.additionalGoals));
+                    }
+                    window.switchGoalType(gType);
+
+                    window.setFormattedInputValue("currentAge", target.financialGoal.currentAge ?? 35);
+                    const baseRetireAge = target.financialGoal.baseTargetAge ?? ((target.financialGoal.targetAge ?? 65) - extYears);
+                    window.setFormattedInputValue("targetAge", Math.max(30, baseRetireAge));
+                    window.setFormattedInputValue("desiredMonthlyExpense", target.financialGoal.desiredMonthlyExpense ?? 40000);
+
+                    document.getElementById("generalGoalName").value = target.financialGoal.generalGoalName || "購屋頭期款暨裝潢基金";
+                    window.setFormattedInputValue("generalTargetAmount", target.financialGoal.generalTargetAmount ?? 3000000);
+                    window.setFormattedInputValue("targetYears", target.financialGoal.targetYears ?? Math.max(1, (target.financialGoal.yearsRemaining ?? 5) - extYears));
+
+                    if (target.financialGoal.retirementSpecifics) {
+                        window.setFormattedInputValue("insuredSalary", target.financialGoal.retirementSpecifics.insuredSalary ?? 45800);
+                        window.setFormattedInputValue("insuredYears", target.financialGoal.retirementSpecifics.insuredYears ?? 35);
+                        window.setFormattedInputValue("laborPensionPV", target.financialGoal.retirementSpecifics.laborPensionPresentValue ?? 450000);
+                    }
+                }
+
+                window.renderMultiGoalsList();
+                window.handleDataChange();
+                updateActiveProfileBanner();
+            } catch (err) {
+                console.warn("applyProfileDataToUI error:", err);
+            } finally {
+                isApplyingProfile = false;
+            }
+        }
+
+        window.renderCloudProfilesList = function() {
+            const badge = document.getElementById("cloudCountBadge");
+            if (badge) badge.textContent = savedCloudProfiles.length;
+
+            const overwriteTitle = document.getElementById("btnOverwriteTitle");
+            const overwriteSub = document.getElementById("btnOverwriteSub");
+            const targetExisting = activeCloudProfileId
+                ? savedCloudProfiles.find(p => p.id === activeCloudProfileId)
+                : savedCloudProfiles[0];
+
+            if (overwriteTitle && overwriteSub) {
+                if (targetExisting) {
+                    overwriteTitle.textContent = "覆蓋目前紀錄";
+                    overwriteSub.textContent = `直接更新：${(targetExisting.profileTitle || "現有紀錄").slice(0, 22)}`;
+                } else {
+                    overwriteTitle.textContent = "儲存為第一筆紀錄";
+                    overwriteSub.textContent = "將建立第一筆規劃快照";
+                }
+            }
+
+            const container = document.getElementById("cloudProfilesListContainer");
+            if (!container) return;
+
+            if (savedCloudProfiles.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs text-slate-400">
+                        目前尚無儲存紀錄，請點擊上方按鈕儲存您的規劃！
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = savedCloudProfiles.map((item, idx) => {
+                const itemId = item.id || item._id;
+                const isCurrentActive = activeCloudProfileId ? (itemId === activeCloudProfileId) : (idx === 0);
+                const netWorthStr = formatTWD(item.balanceSheet?.netWorth || 0);
+                const surplusStr = formatTWD(item.cashFlow?.monthlySurplus || 0);
+                const rate = item.financialGoal?.feasibility?.achievementRate ?? 0;
+
+                return `
+                    <div class="p-3.5 rounded-xl border ${isCurrentActive ? 'border-indigo-500 bg-indigo-50/40' : 'border-slate-200 bg-white'} flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition hover:border-indigo-300">
+                        <div class="space-y-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                ${isCurrentActive ? '<span class="px-2 py-0.5 rounded bg-indigo-600 text-white text-[10px] font-bold shrink-0">目前使用中</span>' : ''}
+                                <div class="font-bold text-slate-800 text-xs sm:text-sm truncate">${item.profileTitle || '未命名規劃'}</div>
+                            </div>
+                            <div class="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span>🕒 ${item.updatedAt || item.createdAt || '剛剛'}</span>
+                                <span>💰 淨值：${netWorthStr}</span>
+                                <span>📈 月結餘：${surplusStr}</span>
+                                <span class="text-indigo-600 font-semibold">🎯 達成率：${rate}%</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" onclick="loadCloudProfileById('${itemId}')" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer">
+                                讀取並套用
+                            </button>
+                            <button type="button" onclick="deleteCloudProfileById('${itemId}')" class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition cursor-pointer" title="刪除此紀錄">
+                                <i class="ph-bold ph-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        };
+
+        // ==================== 5. CFP 國際認證理財規劃顧問面向客戶的白話與深度解析引擎 ====================
+        function generateStructuredAdvisorReport(fg, bs, cf, strat) {
+            const feas = fg.feasibility || {
+                isFeasible: false,
+                shortfallAmount: 0,
+                projectedNetWorthAtGoal: 0,
+                achievementRate: 0,
+                requiredPoolFV: 0,
+                retireOnlyPoolFV: 0,
+                multiGoalsPoolFV: 0,
+                lifeExpectancy: 85,
+                retirementYears: 20,
+                goalBreakdowns: []
+            };
+            const totalAssets = bs.assets.liquid + bs.assets.investment + bs.assets.personal;
+            const totalLiab = bs.liabilities.shortTerm + bs.liabilities.longTerm;
+            const totalInc = cf.income.salary + cf.income.other;
+            const totalExp = cf.expenses.essential + cf.expenses.discretionary;
+            const emergencyMonths = totalExp > 0 ? (bs.assets.liquid / totalExp).toFixed(1) : "0.0";
+            const emergencyTarget6M = totalExp * 6;
+            const emergencyGap = Math.max(0, emergencyTarget6M - bs.assets.liquid);
+            const debtRatio = totalAssets > 0 ? ((totalLiab / totalAssets) * 100).toFixed(1) : "0.0";
+            const savingsPct = (cf.savingsRate * 100).toFixed(1);
+            const yieldPct = ((strat.selectedPortfolioYield || 0.06) * 100).toFixed(1);
+            const effectiveMonthlyInvest = Math.max(0, cf.monthlySurplus + strat.reducedMonthlyExpense);
+
+            const futureMonthlyExpense = Math.round(fg.desiredMonthlyExpense * Math.pow(1.02, fg.yearsRemaining));
+            const laborInsMonthly = fg.retirementSpecifics?.laborInsuranceMonthly || 0;
+            const laborPensionFV = Math.round((fg.retirementSpecifics?.laborPensionPresentValue || 0) * Math.pow(1.03, fg.yearsRemaining));
+
+            const plus1Yield = (strat.selectedPortfolioYield || 0.06) + 0.01;
+            const mRatePlus1 = plus1Yield / 12;
+            const nMonths = Math.max(12, fg.yearsRemaining * 12);
+            const netInv = Math.max(0, bs.assets.investment + bs.assets.liquid * 0.5);
+            const fvPlus1 = Math.round(
+                netInv * Math.pow(1 + plus1Yield, fg.yearsRemaining) +
+                (effectiveMonthlyInvest > 0 ? effectiveMonthlyInvest * ((Math.pow(1 + mRatePlus1, nMonths) - 1) / mRatePlus1) : 0)
+            );
+            const extraGainFrom1Pct = Math.max(0, fvPlus1 - feas.projectedNetWorthAtGoal);
+
+            const mRateCurr = (strat.selectedPortfolioYield || 0.06) / 12;
+            const extra3000FV = Math.round(3000 * ((Math.pow(1 + mRateCurr, nMonths) - 1) / mRateCurr));
+
+            // 目標與長壽風險白話解析（支援退休＋多目標同時分析）
+            const breakdowns = feas.goalBreakdowns || [];
+            const hasMulti = breakdowns.length > 0 && (fg.goalType === "COMBO" || fg.goalType === "GENERAL");
+            const hasRetire = (fg.goalType === "COMBO" || fg.goalType === "RETIREMENT");
+
+            let multiGoalsDetailLines = "";
+            let totalMonthlyPMTForMultiGoals = 0;
+            if (hasMulti) {
+                multiGoalsDetailLines = breakdowns.map((b, i) => {
+                    totalMonthlyPMTForMultiGoals += b.requiredMonthlyPMT;
+                    return `   - **【目標 ${i + 1}：${b.name}（優先度：${b.priority}）】**：預計 **${b.effectiveYears} 年後（${b.targetAgeAtGoal} 歲）**達成。現值需求 ${formatTWD(b.presentAmount)}，加計 2% 通膨後屆時實際需要 **${formatTWD(b.fvAtGoalYear)}**（若以年化 ${yieldPct}% 定期定額準備，每月需專款投入約 **${formatTWD(b.requiredMonthlyPMT)}**）。`;
+                }).join("\n");
+            }
+
+            let savingsDiagnosis = "";
+            if (cf.monthlySurplus < 0) {
+                savingsDiagnosis = `⚠️ **【CFP 現金流警示：目前處於「入不敷出」的收支赤字】**\n   您每個月的總支出（${formatTWD(totalExp)}）超過總收入（${formatTWD(totalInc)}），每月透支 **${formatTWD(Math.abs(cf.monthlySurplus))}**。站在 CFP 顧問保護客戶資產的立場，此時**絕對不宜冒然借貸或投入高風險商品**，第一要務是「現金流止血」，先將非必要開銷降下來。`;
+            } else if (cf.savingsRate >= 0.30) {
+                savingsDiagnosis = `🌟 **【CFP 現金流評級：優良（超越 30% 黃金儲蓄門檻）】**\n   您每個月從 **${formatTWD(totalInc)}** 的總收入中，能穩定留存 **${formatTWD(cf.monthlySurplus)}**（儲蓄率達 **${savingsPct}%**）。這代表您具備極佳的財務韌性，只要將這筆結餘放對資產配置池，達成人生多重財務目標的勝率極高！`;
+            } else {
+                savingsDiagnosis = `💡 **【CFP 現金流評級：穩健偏保守（尚有加速空間）】**\n   您目前每月結餘為 **${formatTWD(cf.monthlySurplus)}**（儲蓄率 **${savingsPct}%**）。雖然維持正向現金流，但若要同時支應中短期目標與退休準備，建議逐步朝「30% 黃金儲蓄率（約每月存下 ${formatTWD(totalInc * 0.3)}）」微調。`;
+            }
+
+            let goalDeepExplanation = "";
+            if (hasRetire && hasMulti) {
+                goalDeepExplanation = `2. **CFP 多目標統籌診斷：把「退休金」與「${breakdowns.length} 項人生中短期目標」放在同一張時間軸算清楚**：\n   許多客戶在做理財時，最常發生的遺憾就是「買了房子、付完孩子學費後，才驚覺自己的退休金被掏空了」。身為您的 CFP 顧問，我們已將您的所有目標整合在同一套現金流模型中精算：\n   - **第一階段：中短期專款專用目標（共 ${breakdowns.length} 項，合計每月建議提撥約 ${formatTWD(totalMonthlyPMTForMultiGoals)}）**：\n${multiGoalsDetailLines}\n   - **第二階段：${fg.targetAge} 歲退休與長壽風險防禦（保護您直到 ${feas.lifeExpectancy} 歲）**：\n     現在每月 **${formatTWD(fg.desiredMonthlyExpense)}** 的退休生活水準，在每年 2% 通膨複利下，**${fg.yearsRemaining} 年後**退休時每月實際需要 **${formatTWD(futureMonthlyExpense)}** 才夠維持相同品質！扣除政府勞保老年年金（預估月領 **${formatTWD(laborInsMonthly)}**）與勞退新制專戶（3% 複利累積約 **${formatTWD(laborPensionFV)}**）後，純退休自備款需 **${formatTWD(feas.retireOnlyPoolFV)}**；再加上中短期目標提領的複利機會成本（約 **${formatTWD(feas.multiGoalsPoolFV)}**），您的人生綜合總資金池需求為 **${formatTWD(feas.requiredPoolFV)}**。`;
+            } else if (hasRetire) {
+                goalDeepExplanation = `2. **CFP 退休精算觀點：把「複利終值」與「長壽風險」翻成白話文**：\n   - **通膨購買力折算**：您期望退休後維持現值每月 **${formatTWD(fg.desiredMonthlyExpense)}** 的生活品質，經過 **${fg.yearsRemaining} 年**的 2% 物價通膨後，到了 **${fg.targetAge} 歲**退休當年，每個月實際需要 **${formatTWD(futureMonthlyExpense)}**。\n   - **長壽風險防禦（算到 ${feas.lifeExpectancy} 歲）**：依據內政部簡易生命表基準並納入醫療進步緩衝，我們為您規劃至 **${feas.lifeExpectancy} 歲**（支應退休後 **${feas.retirementYears} 年**開銷）。扣除勞保預估月領 **${formatTWD(laborInsMonthly)}** 與勞退專戶終值 **${formatTWD(laborPensionFV)}** 後，您個人需準備的退休金總池為 **${formatTWD(feas.requiredPoolFV)}**。`;
+            } else {
+                goalDeepExplanation = `2. **CFP 目標達成精算：把您的「${breakdowns.length} 項中短期理財目標」與通膨購買力算清楚**：\n${multiGoalsDetailLines}\n   - 考量期間 2% 通膨與各目標達成時程，折算至 **${fg.yearsRemaining} 年後**的綜合目標總資金需求為 **${formatTWD(feas.requiredPoolFV)}**。`;
+            }
+
+            const emergencyAndDebtWarning = Number(emergencyMonths) < 6
+                ? `⚠️ **風險一：緊急預備金防護網不足（目前僅能支應 ${emergencyMonths} 個月）**\n   - 在 CFP 國際理財規劃準則中，「風險管理與緊急預備金」永遠排在投資之前。建議家庭至少保留 **6 個月總支出（約 ${formatTWD(emergencyTarget6M)}）** 的高流動性現金。\n   - 您目前流動資產為 **${formatTWD(bs.assets.liquid)}**，尚有 **${formatTWD(emergencyGap)}** 的安全缺口。若未補足就將資金全數投入股市，萬一遇到突發醫療、職場轉換或市場修正，極易被迫在低點認賠變現。`
+                : `✅ **風險一：緊急預備金防護網充足（可支應 ${emergencyMonths} 個月）**\n   - 您目前保有 **${formatTWD(bs.assets.liquid)}** 的流動資產，已超越 6 個月生活費（${formatTWD(emergencyTarget6M)}）的 CFP 安全標準。提醒您：超過 6~12 個月以上的超額現金若長期停泊在低利活存，實質購買力會被 2% 通膨侵蝕，建議分批轉入核心投資組合。`;
+
+            const shortDebtWarning = bs.liabilities.shortTerm > 0
+                ? `🚨 **風險二：高息短期負債拖累複利累積（目前有 ${formatTWD(bs.liabilities.shortTerm)}）**\n   - 您帳上有一筆 **${formatTWD(bs.liabilities.shortTerm)}** 的短期負債。信貸或信用卡分期的實質年利率常落在 5%~15%，遠高於穩健投資組合的確定報酬。CFP 顧問建議您優先動用部分閒置資金或獎金將其結清，「消除高息負債就是最確定的無風險高報酬」。`
+                : `✅ **風險二：債務結構健康（無短期高息消費負債）**\n   - 您目前無短期高息負債，整體總負債比率為 **${debtRatio}%**，信用槓桿維持在安全可控範圍內。`;
+
+            return `### 🔮 一、 CFP 顧問整體財務診斷（我們如何看您目前的財務全貌？）
+
+親愛的客戶您好，我是華南銀行理財專員，同時具備 **CFP®（國際認證高級理財規劃顧問）、AFP 與 RFA（退休理財規畫顧問）** 資格的 **莊永豐 (YungFeng) 顧問**。
+在國際 CFP 的專業規劃標準中，我們不單純推銷金融商品，而是先從您的**「人生目標、現金流韌性與資產負債結構」**出發，幫您確認現在走的每一步，是否都能穩健支撐未來的理想生活：
+
+1. **您的資產淨值與每月現金流健康度**：
+   - 目前您的個人總資產為 **${formatTWD(totalAssets)}**（含流動資產 ${formatTWD(bs.assets.liquid)}、投資資產 ${formatTWD(bs.assets.investment)}、自用資產 ${formatTWD(bs.assets.personal)}），扣除總負債 **${formatTWD(totalLiab)}** 後，真正屬於您的**個人淨值為 ${formatTWD(bs.netWorth)}**。
+   - ${savingsDiagnosis}
+${goalDeepExplanation}
+3. **綜合目標可行性評估（目前達成率：${feas.achievementRate}%）**：
+   - 依據您目前設定的投資組合預期年化報酬率 **${yieldPct}%**，以及每月可投入本金 **${formatTWD(effectiveMonthlyInvest)}**（原始結餘 ${formatTWD(cf.monthlySurplus)} ＋ 節流轉投資 ${formatTWD(strat.reducedMonthlyExpense)}），預計在主時間軸終點可累積資產達 **${formatTWD(feas.projectedNetWorthAtGoal)}**。
+   - ${feas.isFeasible ? `🎉 **診斷結果：恭喜您！目前已跨過綜合達標門檻（達成率 ${feas.achievementRate}%）**，不僅能如期完成目標，還擁有 **${formatTWD(feas.shortfallAmount)}** 的安全緩衝盈餘！接下來的顧問重點在於「鎖住獲利、隨年齡降低波動風險」。` : `📌 **診斷結果：目前尚有 ${formatTWD(feas.shortfallAmount)} 的綜合資金缺口（達成率 ${feas.achievementRate}%）**。請放心，提早發現缺口正是做 CFP 財務規劃最大的價值！我們還有 **${fg.yearsRemaining} 年**的複利緩衝期，只要透過下方第三段的「四大行動方案」，就能逐步收斂缺口。`}
+
+---
+
+### ⚠️ 二、 CFP 顧問提醒您必須留意的 3 大財務盲點與風險
+
+站在客觀獨立顧問的角度，除了追求報酬率之外，我更關心有哪些潛在風險會打亂您的計畫：
+
+1. ${emergencyAndDebtWarning}
+2. ${shortDebtWarning}
+3. **風險三：通膨購買力侵蝕與「目標前夕的報酬順序風險 (Sequence of Returns Risk)」**：
+   - **想要開銷的隱形流失**：您每月的「想要開銷」為 **${formatTWD(cf.expenses.discretionary)}**。日常微小的非必要消費若未加控管，30 年下來會少掉數百萬元的複利終值。
+   - **切忌將短期要用的錢放進高波動股市**：若您在未來幾年內有購屋或教育金需求，或距離退休僅剩最後 5 年，切勿將該筆專款過度集中在單一高波動股票，以免在急需用錢當年遭遇市場大幅回檔而被迫虧損出場。
+
+---
+
+### 🎯 三、 CFP 顧問給您的具體調整與執行建議 (Action Plan)
+
+為了協助您穩健達成 **100% 以上**的目標達成率，建議您從這個月發薪日起，落實以下 **4 個具體執行步驟**：
+
+1. **步驟一：【子母帳戶時間軸分流法】按目標年期精準配置資產（目標年化報酬 ${yieldPct}%）**
+   - **為什麼要分流？** 不同年限的目標，承受波動的能力完全不同。建議將現有投資資產（**${formatTWD(bs.assets.investment)}**）與每月新投入資金依時間軸拆分為：
+     * **短期目標專戶（1~5 年內動用，如近程頭期款/預備金）**：配置於**高評級債券 ETF、短天期定存或低波動多重資產基金**，首要目標為「保本與確定性」。
+     * **中長期與退休核心專戶（6~15 年以上動用）**：採取**「核心（70% 全球/市值型寬基 ETF）＋衛星（30% 投資等級債/平衡型基金）」**配置。
+   - **複利效益試算**：只要透過上述資產配置讓整體年化報酬率微幅提升 **1%（來到 ${(plus1Yield * 100).toFixed(1)}%）**，在相同投入本金下，期末即可多創造約 **${formatTWD(extraGainFrom1Pct)}** 的額外財富！
+2. **步驟二：【現金流無痛節流方案】將「想要開銷」轉化為「未來的自由基金」**
+   - 您目前已設定每月減少開銷 **${formatTWD(strat.reducedMonthlyExpense)}** 轉入投資。若能從每月的想要開銷（${formatTWD(cf.expenses.discretionary)}）中，再多省下 **NT$ 3,000 /月** 投入 ${yieldPct}% 的投資組合，經過 ${fg.yearsRemaining} 年複利滾存，期末將可多累積 **${formatTWD(extra3000FV)}**！
+3. **步驟三：【善用制度與稅務紅利】最大化勞退新制自提 6% 與保單檢視**
+   - 若您屬於中高所得稅率級距，強烈建議向公司申請**「勞工退休金自願提繳 6%」**，提繳金額可全數自當年度個人綜合所得總額中扣除，兼具「合法節稅＋強迫儲蓄＋保證不低於兩年定存利率收益」三重優勢。
+4. **步驟四：【建立自動化紀律與年度 CFP 定期重檢】**
+   - **先儲蓄後消費**：請於每月發薪日隔天設定「銀行自動轉帳與定期定額扣款」，將每月應投入的 **${formatTWD(effectiveMonthlyInvest)}** 自動撥入投資專戶，排除人性猶豫。
+   - **每年一次動態再平衡 (Rebalancing)**：建議每滿一年重新開啟本系統更新資產負債數字，檢視各目標達成進度並將漲多的風險資產獲利了結、轉入穩健配息標的。
+
+---
+> **💬 CFP 莊永豐 (YungFeng) 顧問給您的溫馨叮嚀**：
+> 理財規劃不是為了限制現在的生活，而是為了讓未來的您在面對「買房成家、子女教育、安心退休」每一個重要人生轉折點時，都擁有從容選擇的底氣。讓我們從這個月開始踏出第一步！
+> **© 2026 FENGStudio (FENG 莊永豐顧問 | 華南銀行理專 / CFP / AFP / RFA). All rights reserved.**`;
+        }
+
+        window.generateAIReport = async function(forceCallAPI = false) {
+            window.handleDataChange();
+            const container = document.getElementById("aiReportContentContainer");
+            const fg = window.financialProfile.financialGoal;
+            const bs = window.financialProfile.balanceSheet;
+            const cf = window.financialProfile.cashFlow;
+            const strat = window.financialProfile.adjustmentStrategies;
+
+            if (!forceCallAPI && !userApiKey) {
+                window.syncStep4LiveSummaryAndReport();
+                return;
+            }
+
+            if (forceCallAPI && !userApiKey) {
+                window.syncStep4LiveSummaryAndReport();
+                window.showToast("✨ 已透過 CFP 專業顧問引擎為您重新生成最新財務規劃建議書！");
+                return;
+            }
+
+            if (container) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-slate-500 space-y-3">
+                        <div class="animate-spin text-3xl">🔮</div>
+                        <div class="font-bold">YungFeng (CFP / AFP / RFA) 顧問正在為您撰寫客製化財務規劃建議書...</div>
+                    </div>`;
+            }
+
+            const breakdowns = fg.feasibility?.goalBreakdowns || [];
+            const goalsText = breakdowns.length > 0
+                ? breakdowns.map((b, idx) => `目標${idx + 1}[${b.name}]: 現值${formatTWD(b.presentAmount)}, ${b.effectiveYears}年後達成, 通膨後終值${formatTWD(b.fvAtGoalYear)}, 優先度:${b.priority}`).join("； ")
+                : "無額外中短期目標";
+
+            const prompt = `你是 YungFeng（莊永豐），華南銀行理財專員，同時具備 CFP（國際認證高級理財規劃顧問）、AFP 與 RFA（退休理財規畫顧問）專業認證。
+請站在 CFP 專業顧問直接向客戶解說的立場，以溫暖、白話、條理分明且具洞察力的口吻，為客戶撰寫一份「CFP 專業顧問個人理財與退休規劃建議書」（請使用 Markdown 格式）。
+
+【客戶最新財務與多目標調校數據】
+- 規劃模式：${fg.goalType === 'COMBO' ? '退休＋多目標同時綜合規劃' : (fg.goalType === 'RETIREMENT' ? '退休專屬規劃' : '中短期多目標規劃')}
+- 現有年齡：${fg.currentAge} 歲，目標退休/主時間軸年齡：${fg.targetAge} 歲（尚餘 ${fg.yearsRemaining} 年，預估長壽風險保護至 ${fg.feasibility.lifeExpectancy} 歲）
+- 個人淨值：${formatTWD(bs.netWorth)}（流動資產 ${formatTWD(bs.assets.liquid)}、投資資產 ${formatTWD(bs.assets.investment)}、自用資產 ${formatTWD(bs.assets.personal)}；短期負債 ${formatTWD(bs.liabilities.shortTerm)}、長期負債 ${formatTWD(bs.liabilities.longTerm)}）
+- 每月收支：總收入 ${formatTWD(cf.income.salary + cf.income.other)}，必要開銷 ${formatTWD(cf.expenses.essential)}，想要開銷 ${formatTWD(cf.expenses.discretionary)}，每月結餘 ${formatTWD(cf.monthlySurplus)}（儲蓄率 ${(cf.savingsRate * 100).toFixed(1)}%）
+- 多重中短期理財目標清單：${goalsText}
+- 調校後預期年化報酬率：${(strat.selectedPortfolioYield * 100).toFixed(1)}%，每月額外減少開銷轉投資：${formatTWD(strat.reducedMonthlyExpense)}，延後年數：${strat.extendYears} 年
+- 扣除勞保與勞退後所需綜合目標總資金池：${formatTWD(fg.feasibility.requiredPoolFV)}，預計可累積總額：${formatTWD(fg.feasibility.projectedNetWorthAtGoal)}，目前綜合達成率：${fg.feasibility.achievementRate}%（差額：${formatTWD(fg.feasibility.shortfallAmount)}）
+
+【請嚴格包含以下三大核心段落】
+### 🔮 一、 CFP 顧問整體財務診斷（以 CFP 觀點向客戶白話說明其資產淨值、儲蓄率、多目標與長壽風險缺口診斷）
+### ⚠️ 二、 CFP 顧問提醒您必須留意的 3 大財務盲點與風險（針對緊急預備金月數、短期負債、通膨侵蝕與目標前夕報酬順序風險提出具體提醒）
+### 🎯 三、 CFP 顧問給您的具體調整與執行建議 (Action Plan)（包含子母帳戶時間軸分流配置、無痛節流轉投資、勞退自提節稅與每月發薪日自動化執行步驟）
+最後請附上版權宣告：© 2026 FENGStudio (FENG 莊永豐顧問 | 華南銀行理專 / CFP / AFP / RFA). All rights reserved.`;
+
+            try {
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${userApiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const result = await response.json();
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    window.financialProfile.aiGeneratedReport = { status: "COMPLETED", markdownContent: text, generatedAt: new Date().toISOString() };
+                    if (container) container.innerHTML = parseMarkdownToHTML(text);
+                    window.showToast("✨ CFP 顧問專屬 AI 財務規劃建議書生成成功！");
+                    return;
+                }
+            } catch (e) {
+                console.warn("Gemini API fallback to built-in CFP engine:", e);
+            }
+
+            window.syncStep4LiveSummaryAndReport();
+            window.showToast("✨ 已透過內建 CFP 專業顧問引擎為您產出完整規劃建議書！");
+        };
+
+        function parseMarkdownToHTML(md) {
+            return md
+                .replace(/^### (.*$)/gim, '<h3 class="text-base sm:text-lg font-extrabold text-indigo-950 mt-6 mb-2.5 border-b-2 border-indigo-100 pb-2 flex items-center gap-2">$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2 class="text-lg sm:text-xl font-bold text-slate-900 mt-6 mb-3">$1</h2>')
+                .replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-indigo-500 bg-indigo-50/60 pl-4 py-2 my-2 text-xs sm:text-sm text-slate-700 rounded-r-xl">$1</blockquote>')
+                .replace(/^\- (.*$)/gim, '<li class="ml-5 list-disc text-slate-700 my-1.5 leading-relaxed">$1</li>')
+                .replace(/^\d+\. (.*$)/gim, '<li class="ml-5 list-decimal font-medium text-slate-800 my-2 leading-relaxed">$1</li>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-indigo-950 bg-indigo-50/50 px-1 rounded">$1</strong>')
+                .replace(/\n---\n/g, '<hr class="my-5 border-slate-200">')
+                .replace(/\n/g, '<br>');
+        }
+
+        window.exportToPDF = async function() {
+            window.handleDataChange();
+            const element = document.getElementById("aiReportPrintArea");
+            const fg = window.financialProfile.financialGoal;
+            const strat = window.financialProfile.adjustmentStrategies;
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const rate = fg.feasibility?.achievementRate ?? 0;
+            const yieldPct = ((strat.selectedPortfolioYield || 0.06) * 100).toFixed(1);
+            const filename = `個人理財規劃書_YungFeng顧問_${fg.targetAge}歲退休_報酬${yieldPct}%_達成率${rate}%_${dateStr}.pdf`;
+
+            const btn = document.getElementById("btnExportPDF");
+            const origHTML = btn ? btn.innerHTML : "";
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="ph-bold ph-spinner animate-spin"></i><span>正在產生 PDF...</span>`;
+            }
+
+            try {
+                if (typeof html2pdf !== "undefined") {
+                    const opt = {
+                        margin:       [10, 10, 10, 10],
+                        filename:     filename,
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    await html2pdf().from(element).set(opt).save();
+                } else {
+                    window.print();
+                }
+
+                const fnEl = document.getElementById("pdfSavedFilename");
+                if (fnEl) fnEl.textContent = filename;
+                document.getElementById("pdfExportModal")?.classList.remove("hidden");
+                window.showToast(`📄 PDF 已下載至您的「下載 (Downloads)」資料夾！`);
+            } catch (err) {
+                window.openStandalonePrintWindow();
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHTML;
+                }
+            }
+        };
+
+        window.closePdfModal = function() {
+            document.getElementById("pdfExportModal")?.classList.add("hidden");
+        };
+
+        window.openStandalonePrintWindow = function() {
+            const printContent = document.getElementById("aiReportPrintArea")?.innerHTML || "";
+            const win = window.open("", "_blank", "width=900,height=800");
+            if (win) {
+                win.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>個人理財規畫建議書 - YungFeng 顧問</title>
+                        <script src="https://cdn.tailwindcss.com"><\/script>
+                    </head>
+                    <body class="p-8 bg-white text-slate-800">
+                        <div class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex justify-between items-center no-print">
+                            <span>💡 請在彈出的系統列印視窗中，將目的地選為 <strong>「另存為 PDF (Save as PDF)」</strong> 即可自選儲存資料夾！</span>
+                            <button onclick="window.print()" class="px-4 py-1.5 bg-indigo-600 text-white font-bold rounded-lg">立即列印 / 另存 PDF</button>
+                        </div>
+                        ${printContent}
+                        <script>setTimeout(() => { window.print(); }, 600);<\/script>
+                    </body>
+                    </html>
+                `);
+                win.document.close();
+            } else {
+                window.print();
+            }
+        };
+
+        window.loadPersonaPreset = function(type) {
+            if (!type) return;
+            activeCloudProfileId = null;
+            if (type === "alex") {
+                window.setFormattedInputValue("assetLiquid", 200000);
+                window.setFormattedInputValue("assetInvestment", 300000);
+                window.setFormattedInputValue("assetPersonal", 0);
+                window.setFormattedInputValue("liabShortTerm", 30000);
+                window.setFormattedInputValue("liabLongTerm", 0);
+                window.setFormattedInputValue("incSalary", 45000);
+                window.setFormattedInputValue("incOther", 3000);
+                window.setFormattedInputValue("expEssential", 25000);
+                window.setFormattedInputValue("expDiscretionary", 15000);
+                window.financialProfile.financialGoal.additionalGoals = [
+                    { id: "g_alex_1", name: "人生第一桶金暨結婚成家基金", amount: 1200000, years: 5, enabled: true, priority: "高 (核心剛需)" },
+                    { id: "g_alex_2", name: "首購族買房頭期款", amount: 2500000, years: 10, enabled: true, priority: "中 (階段成長)" }
+                ];
+                window.switchGoalType("COMBO");
+                window.setFormattedInputValue("currentAge", 28);
+                window.setFormattedInputValue("targetAge", 60);
+                window.setFormattedInputValue("desiredMonthlyExpense", 35000);
+                document.getElementById("sliderPortfolioYield").value = 0.06;
+                document.getElementById("sliderExtendYears").value = 0;
+                document.getElementById("sliderReduceExpense").value = 0;
+                window.showToast("✨ 已載入 Persona A：小資族 Alex（同時規劃成家、購屋與60歲退休）");
+            } else if (type === "brenda") {
+                window.setFormattedInputValue("assetLiquid", 800000);
+                window.setFormattedInputValue("assetInvestment", 3500000);
+                window.setFormattedInputValue("assetPersonal", 12000000);
+                window.setFormattedInputValue("liabShortTerm", 0);
+                window.setFormattedInputValue("liabLongTerm", 6500000);
+                window.setFormattedInputValue("incSalary", 95000);
+                window.setFormattedInputValue("incOther", 10000);
+                window.setFormattedInputValue("expEssential", 45000);
+                window.setFormattedInputValue("expDiscretionary", 20000);
+                window.financialProfile.financialGoal.additionalGoals = [
+                    { id: "g_brenda_1", name: "子女出國留學碩士基金", amount: 2000000, years: 4, enabled: true, priority: "高 (核心剛需)" },
+                    { id: "g_brenda_2", name: "退休前住宅老屋翻修無障礙空間", amount: 1200000, years: 10, enabled: true, priority: "中 (階段成長)" }
+                ];
+                window.switchGoalType("COMBO");
+                window.setFormattedInputValue("currentAge", 50);
+                window.setFormattedInputValue("targetAge", 65);
+                window.setFormattedInputValue("desiredMonthlyExpense", 55000);
+                document.getElementById("sliderPortfolioYield").value = 0.06;
+                document.getElementById("sliderExtendYears").value = 0;
+                document.getElementById("sliderReduceExpense").value = 0;
+                window.showToast("✨ 已載入 Persona B：準退休 Brenda（同時規劃留學金、老屋翻修與65歲退休）");
+            } else if (type === "deficit") {
+                window.setFormattedInputValue("assetLiquid", 50000);
+                window.setFormattedInputValue("assetInvestment", 0);
+                window.setFormattedInputValue("assetPersonal", 0);
+                window.setFormattedInputValue("liabShortTerm", 120000);
+                window.setFormattedInputValue("liabLongTerm", 0);
+                window.setFormattedInputValue("incSalary", 38000);
+                window.setFormattedInputValue("incOther", 0);
+                window.setFormattedInputValue("expEssential", 35000);
+                window.setFormattedInputValue("expDiscretionary", 8000);
+                window.switchGoalType("RETIREMENT");
+                window.setFormattedInputValue("currentAge", 32);
+                window.setFormattedInputValue("targetAge", 65);
+                window.setFormattedInputValue("desiredMonthlyExpense", 40000);
+                document.getElementById("sliderPortfolioYield").value = 0.06;
+                document.getElementById("sliderExtendYears").value = 0;
+                document.getElementById("sliderReduceExpense").value = 0;
+                window.showToast("⚠️ 已載入邊界測試：收支赤字與負淨值警示");
+            }
+            document.getElementById("personaSelect").value = "";
+            window.handleDataChange();
+            updateActiveProfileBanner();
+        };
+
+        window.toggleCloudModal = function() {
+            const m = document.getElementById("cloudModal");
+            if (!m) return;
+            m.classList.toggle("hidden");
+            if (!m.classList.contains("hidden")) {
+                window.syncDynamicProfileTitle(false);
+                window.renderCloudProfilesList();
+            }
+        };
+
+        window.openSaveCloudDialog = function() {
+            window.handleDataChange();
+            window.syncDynamicProfileTitle(false);
+            window.renderCloudProfilesList();
+            const modal = document.getElementById("cloudModal");
+            if (modal && modal.classList.contains("hidden")) {
+                modal.classList.remove("hidden");
+            }
+        };
+
+        window.openApiKeyModal = function() {
+            document.getElementById("customApiKeyInput").value = userApiKey;
+            document.getElementById("apiKeyModal").classList.remove("hidden");
+        };
+
+        window.closeApiKeyModal = function() {
+            document.getElementById("apiKeyModal").classList.add("hidden");
+        };
+
+        window.saveApiKey = function() {
+            userApiKey = document.getElementById("customApiKeyInput").value.trim();
+            localStorage.setItem("pfg_custom_gemini_key", userApiKey);
+            window.closeApiKeyModal();
+            window.showToast("🔑 Gemini API Key 已成功儲存！");
+        };
+
+        window.showToast = function(msg) {
+            const t = document.getElementById("toastBanner");
+            const txt = document.getElementById("toastText");
+            if (!t || !txt) return;
+            txt.textContent = msg;
+            t.classList.remove("translate-y-24", "opacity-0");
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                t.classList.add("translate-y-24", "opacity-0");
+            }, 3500);
+        };
+
+        window.onload = function() {
+            const savedEmail = localStorage.getItem("pfg_last_login_email");
+            if (savedEmail && document.getElementById("authEmail")) {
+                document.getElementById("authEmail").value = savedEmail;
+            }
+            const initialProfiles = loadFromLocalBackup();
+            if (initialProfiles.length > 0) {
+                savedCloudProfiles = initialProfiles;
+                applyProfileDataToUI(initialProfiles[0]);
+            } else {
+                window.switchGoalType("COMBO");
+                window.handleDataChange();
+            }
+        };
+    </script>
+</body>
+</html>
